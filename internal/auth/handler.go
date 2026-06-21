@@ -3,6 +3,7 @@ package auth
 import (
 	"net/http"
 
+	"github.com/MonuChaudhary14/sys/pkg/response"
 	"github.com/gin-gonic/gin"
 )
 
@@ -23,28 +24,18 @@ func (h *Handler) Register(c *gin.Context) {
 
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": err.Error(),
-			},
-		)
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	user, err := h.authService.Register(c.Request.Context(), req)
 
 	if err != nil {
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": err.Error(),
-			},
-		)
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, user)
+	response.Success(c, http.StatusCreated, "user registered successfully", user)
 }
 
 func (h *Handler) VerifyEmail(
@@ -54,12 +45,7 @@ func (h *Handler) VerifyEmail(
 	var req VerifyEmailRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": err.Error(),
-			},
-		)
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -69,21 +55,11 @@ func (h *Handler) VerifyEmail(
 	)
 
 	if err != nil {
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": err.Error(),
-			},
-		)
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	c.JSON(
-		http.StatusOK,
-		gin.H{
-			"message": "email verified successfully",
-		},
-	)
+	response.Success(c, http.StatusOK, "email verified successfully", nil)
 }
 
 func (h *Handler) Login(
@@ -93,35 +69,21 @@ func (h *Handler) Login(
 	var req LoginRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": err.Error(),
-			},
-		)
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	response, err :=
-		h.authService.Login(
-			c.Request.Context(),
-			req,
-		)
+	resp, err := h.authService.Login(
+		c.Request.Context(),
+		req,
+	)
 
 	if err != nil {
-		c.JSON(
-			http.StatusUnauthorized,
-			gin.H{
-				"error": err.Error(),
-			},
-		)
+		response.Error(c, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	c.JSON(
-		http.StatusOK,
-		response,
-	)
+	response.Success(c, http.StatusOK, "logged in successfully", resp)
 }
 
 func (h *Handler) Refresh(
@@ -131,75 +93,62 @@ func (h *Handler) Refresh(
 	var req RefreshRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": err.Error(),
-			},
-		)
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	response, err := h.authService.Refresh(
+	resp, err := h.authService.Refresh(
 		c.Request.Context(),
 		req,
 	)
 
 	if err != nil {
-		c.JSON(
-			http.StatusUnauthorized,
-			gin.H{
-				"error": err.Error(),
-			},
-		)
+		response.Error(c, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	c.JSON(
-		http.StatusOK,
-		response,
-	)
+	response.Success(c, http.StatusOK, "token refreshed successfully", resp)
 }
 
 func (h *Handler) Logout(c *gin.Context) {
 	var req LogoutRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	if err := h.authService.Logout(c.Request.Context(), req); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "logged out successfully"})
+	response.Success(c, http.StatusOK, "logged out successfully", nil)
 }
 
 func (h *Handler) ForgotPassword(c *gin.Context) {
 	var req ForgotPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	_ = h.authService.ForgotPassword(c.Request.Context(), req)
 
-	c.JSON(http.StatusOK, gin.H{"message": "if an account with that email exists, a password reset email has been sent"})
+	response.Success(c, http.StatusOK, "if an account with that email exists, a password reset email has been sent", nil)
 }
 
 func (h *Handler) ResetPassword(c *gin.Context) {
 	var req ResetPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	if err := h.authService.ResetPassword(c.Request.Context(), req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "password reset successfully"})
+	response.Success(c, http.StatusOK, "password reset successfully", nil)
 }
 
