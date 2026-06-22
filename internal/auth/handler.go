@@ -2,6 +2,7 @@ package auth
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/MonuChaudhary14/sys/pkg/response"
 	"github.com/gin-gonic/gin"
@@ -28,6 +29,10 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
+	req.Name = strings.TrimSpace(req.Name)
+	req.Email = strings.TrimSpace(req.Email)
+	req.Password = strings.TrimSpace(req.Password)
+
 	user, err := h.authService.Register(c.Request.Context(), req)
 
 	if err != nil {
@@ -48,6 +53,9 @@ func (h *Handler) VerifyEmail(
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
+
+	req.Email = strings.TrimSpace(req.Email)
+	req.OTP = strings.TrimSpace(req.OTP)
 
 	err := h.authService.VerifyEmail(
 		c.Request.Context(),
@@ -72,6 +80,9 @@ func (h *Handler) Login(
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
+
+	req.Email = strings.TrimSpace(req.Email)
+	req.Password = strings.TrimSpace(req.Password)
 
 	resp, err := h.authService.Login(
 		c.Request.Context(),
@@ -155,6 +166,8 @@ func (h *Handler) ForgotPassword(c *gin.Context) {
 		return
 	}
 
+	req.Email = strings.TrimSpace(req.Email)
+
 	_ = h.authService.ForgotPassword(c.Request.Context(), req)
 
 	response.Success(c, http.StatusOK, "if an account with that email exists, a password reset email has been sent", nil)
@@ -166,6 +179,10 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
+
+	req.Email = strings.TrimSpace(req.Email)
+	req.OTP = strings.TrimSpace(req.OTP)
+	req.NewPassword = strings.TrimSpace(req.NewPassword)
 
 	if err := h.authService.ResetPassword(c.Request.Context(), req); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())

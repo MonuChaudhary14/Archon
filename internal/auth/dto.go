@@ -3,7 +3,7 @@ package auth
 type RegisterRequest struct {
 	Name     string `json:"name" binding:"required,min=2,max=100"`
 	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=8"`
+	Password string `json:"password" binding:"required,min=8,max=30"`
 }
 
 type LoginRequest struct {
@@ -42,6 +42,6 @@ type ForgotPasswordRequest struct {
 type ResetPasswordRequest struct {
 	Email       string `json:"email" binding:"required,email"`
 	OTP         string `json:"otp" binding:"required"`
-	NewPassword string `json:"new_password" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required,min=8,max=30"`
 }
 

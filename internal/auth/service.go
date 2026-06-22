@@ -424,5 +424,5 @@ func isStrongPassword(s string) bool {
 			hasSpecial = true
 		}
 	}
-	return hasUpper && hasLower && hasNumber && hasSpecial && len(s) >= 8
+	return hasUpper && hasLower && hasNumber && hasSpecial && len(s) >= 8 && len(s) <= 30
 }
