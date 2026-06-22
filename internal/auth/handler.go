@@ -83,6 +83,10 @@ func (h *Handler) Login(
 		return
 	}
 
+	c.SetSameSite(http.SameSiteNoneMode)
+	c.SetCookie("access_token", resp.AccessToken, 15*60, "/", "", true, true)
+	c.SetCookie("refresh_token", resp.RefreshToken, 7*24*60*60, "/", "", true, true)
+
 	response.Success(c, http.StatusOK, "logged in successfully", resp)
 }
 
@@ -92,9 +96,14 @@ func (h *Handler) Refresh(
 
 	var req RefreshRequest
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
-		return
+	refreshToken, err := c.Cookie("refresh_token")
+	if err == nil && refreshToken != "" {
+		req.RefreshToken = refreshToken
+	} else {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.Error(c, http.StatusBadRequest, "refresh token not found in cookie or request body")
+			return
+		}
 	}
 
 	resp, err := h.authService.Refresh(
@@ -107,20 +116,34 @@ func (h *Handler) Refresh(
 		return
 	}
 
+	c.SetSameSite(http.SameSiteNoneMode)
+	c.SetCookie("access_token", resp.AccessToken, 15*60, "/", "", true, true)
+	c.SetCookie("refresh_token", resp.RefreshToken, 7*24*60*60, "/", "", true, true)
+
 	response.Success(c, http.StatusOK, "token refreshed successfully", resp)
 }
 
 func (h *Handler) Logout(c *gin.Context) {
 	var req LogoutRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
-		return
+
+	refreshToken, err := c.Cookie("refresh_token")
+	if err == nil && refreshToken != "" {
+		req.RefreshToken = refreshToken
+	} else {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.Error(c, http.StatusBadRequest, "refresh token not found in cookie or request body")
+			return
+		}
 	}
 
 	if err := h.authService.Logout(c.Request.Context(), req); err != nil {
 		response.Error(c, http.StatusUnauthorized, err.Error())
 		return
 	}
+
+	c.SetSameSite(http.SameSiteNoneMode)
+	c.SetCookie("access_token", "", -1, "/", "", true, true)
+	c.SetCookie("refresh_token", "", -1, "/", "", true, true)
 
 	response.Success(c, http.StatusOK, "logged out successfully", nil)
 }
