@@ -20,3 +20,9 @@ type RefreshToken struct {
 	CreatedAt time.Time
 	IsUsed    bool
 }
+
+type UnverifiedUser struct {
+	Name         string `json:"name"`
+	Email        string `json:"email"`
+	PasswordHash string `json:"password_hash"`
+}

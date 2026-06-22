@@ -173,8 +173,8 @@ func (h *Handler) ForgotPassword(c *gin.Context) {
 	response.Success(c, http.StatusOK, "if an account with that email exists, a password reset email has been sent", nil)
 }
 
-func (h *Handler) ResetPassword(c *gin.Context) {
-	var req ResetPasswordRequest
+func (h *Handler) VerifyResetOTP(c *gin.Context) {
+	var req VerifyResetOTPRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
@@ -182,6 +182,24 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 
 	req.Email = strings.TrimSpace(req.Email)
 	req.OTP = strings.TrimSpace(req.OTP)
+
+	resp, err := h.authService.VerifyResetOTP(c.Request.Context(), req)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	response.Success(c, http.StatusOK, "otp verified", resp)
+}
+
+func (h *Handler) ResetPassword(c *gin.Context) {
+	var req ResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	req.ResetToken = strings.TrimSpace(req.ResetToken)
 	req.NewPassword = strings.TrimSpace(req.NewPassword)
 
 	if err := h.authService.ResetPassword(c.Request.Context(), req); err != nil {
@@ -192,3 +210,20 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 	response.Success(c, http.StatusOK, "password reset successfully", nil)
 }
 
+func (h *Handler) ResendOTP(c *gin.Context) {
+	var req ResendOTPRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	req.Email = strings.TrimSpace(req.Email)
+	req.Intent = strings.TrimSpace(req.Intent)
+
+	if err := h.authService.ResendOTP(c.Request.Context(), req); err != nil {
+		response.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	response.Success(c, http.StatusOK, "if the account is eligible, a new OTP has been sent", nil)
+}

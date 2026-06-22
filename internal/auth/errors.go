@@ -11,4 +11,6 @@ var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrInvalidToken       = errors.New("invalid token")
 	ErrWeakPassword       = errors.New("password must contain uppercase, lowercase, number, and special character")
+	ErrPleaseWait         = errors.New("please wait 60 seconds before requesting a new code")
+	ErrSessionExpired     = errors.New("session expired, please register again")
 )

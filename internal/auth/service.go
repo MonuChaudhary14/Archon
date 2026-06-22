@@ -42,6 +42,16 @@ type AuthService interface {
 		ctx context.Context,
 		req ResetPasswordRequest,
 	) error
+
+	VerifyResetOTP(
+		ctx context.Context,
+		req VerifyResetOTPRequest,
+	) (*VerifyResetOTPResponse, error)
+
+	ResendOTP(
+		ctx context.Context,
+		req ResendOTPRequest,
+	) error
 }
 
 type authService struct {
@@ -84,6 +94,10 @@ func (s *authService) Register(
 		return nil, ErrEmailExists
 	}
 
+	if s.otpStore.CheckOTPCooldown(ctx, req.Email) {
+		return nil, ErrPleaseWait
+	}
+
 	if !isStrongPassword(req.Password) {
 		return nil, ErrWeakPassword
 	}
@@ -95,20 +109,10 @@ func (s *authService) Register(
 		return nil, err
 	}
 
-	user := &User{
+	unverifiedUser := &UnverifiedUser{
 		Name:         req.Name,
 		Email:        req.Email,
 		PasswordHash: hashedPassword,
-		IsVerified:   false,
-	}
-
-	err = s.userRepository.CreateUser(
-		ctx,
-		user,
-	)
-
-	if err != nil {
-		return nil, err
 	}
 
 	otp, err := GenerateOTP()
@@ -123,7 +127,7 @@ func (s *authService) Register(
 
 	err = s.otpStore.SaveVerificationOTP(
 		ctx,
-		user.Email,
+		req.Email,
 		otpHash,
 	)
 
@@ -131,11 +135,23 @@ func (s *authService) Register(
 		return nil, err
 	}
 
+	err = s.otpStore.SaveUnverifiedUser(
+		ctx,
+		req.Email,
+		unverifiedUser,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	_ = s.otpStore.SetOTPCooldown(ctx, req.Email)
+
 	err = s.emailQueue.Enqueue(
 
 		ctx,
 		EmailJob{
-			Email: user.Email,
+			Email: req.Email,
 			OTP:   otp,
 		},
 	)
@@ -145,9 +161,9 @@ func (s *authService) Register(
 	}
 
 	return &UserResponse{
-		ID:    user.ID,
-		Name:  user.Name,
-		Email: user.Email,
+		ID:    0,
+		Name:  req.Name,
+		Email: req.Email,
 	}, nil
 }
 
@@ -240,9 +256,21 @@ func (s *authService) VerifyEmail(
 		return ErrInvalidOTP
 	}
 
-	err = s.userRepository.UpdateVerificationStatus(
+	unverifiedUser, err := s.otpStore.GetUnverifiedUser(ctx, req.Email)
+	if err != nil {
+		return ErrInvalidOTP
+	}
+
+	user := &User{
+		Name:         unverifiedUser.Name,
+		Email:        unverifiedUser.Email,
+		PasswordHash: unverifiedUser.PasswordHash,
+		IsVerified:   true,
+	}
+
+	err = s.userRepository.CreateUser(
 		ctx,
-		req.Email,
+		user,
 	)
 
 	if err != nil {
@@ -250,6 +278,11 @@ func (s *authService) VerifyEmail(
 	}
 
 	_ = s.otpStore.DeleteVerificationOTP(
+		ctx,
+		req.Email,
+	)
+
+	_ = s.otpStore.DeleteUnverifiedUser(
 		ctx,
 		req.Email,
 	)
@@ -365,23 +398,49 @@ func (s *authService) ForgotPassword(
 	return err
 }
 
-func (s *authService) ResetPassword(
+func (s *authService) VerifyResetOTP(
 	ctx context.Context,
-	req ResetPasswordRequest,
-) error {
-	user, err := s.userRepository.FindByEmail(ctx, req.Email)
-	if err != nil {
-		return ErrInvalidOTP
-	}
-
+	req VerifyResetOTPRequest,
+) (*VerifyResetOTPResponse, error) {
 	storedHash, err := s.otpStore.GetPasswordResetOTP(ctx, req.Email)
 	if err != nil {
-		return ErrInvalidOTP
+		return nil, ErrInvalidOTP
 	}
 
 	incomingHash := HashOTP(req.OTP)
 	if subtle.ConstantTimeCompare([]byte(incomingHash), []byte(storedHash)) != 1 {
-		return ErrInvalidOTP
+		return nil, ErrInvalidOTP
+	}
+
+	// Valid OTP. Delete it so it can't be reused.
+	_ = s.otpStore.DeletePasswordResetOTP(ctx, req.Email)
+
+	token, err := GenerateSecureToken()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.otpStore.SaveResetToken(ctx, token, req.Email); err != nil {
+		return nil, err
+	}
+
+	return &VerifyResetOTPResponse{
+		ResetToken: token,
+	}, nil
+}
+
+func (s *authService) ResetPassword(
+	ctx context.Context,
+	req ResetPasswordRequest,
+) error {
+	email, err := s.otpStore.GetEmailByResetToken(ctx, req.ResetToken)
+	if err != nil {
+		return ErrInvalidToken
+	}
+
+	user, err := s.userRepository.FindByEmail(ctx, email)
+	if err != nil {
+		return ErrInvalidToken
 	}
 
 	if !isStrongPassword(req.NewPassword) {
@@ -403,11 +462,73 @@ func (s *authService) ResetPassword(
 	})
 
 	if err == nil {
-		// Only delete the OTP if the transaction was completely successful
-		_ = s.otpStore.DeletePasswordResetOTP(ctx, user.Email)
+		// Only delete the reset token if the transaction was completely successful
+		_ = s.otpStore.DeleteResetToken(ctx, req.ResetToken)
 	}
 
 	return err
+}
+
+func (s *authService) ResendOTP(
+	ctx context.Context,
+	req ResendOTPRequest,
+) error {
+	if s.otpStore.CheckOTPCooldown(ctx, req.Email) {
+		return ErrPleaseWait
+	}
+
+	if req.Intent == "register" {
+		unverifiedUser, err := s.otpStore.GetUnverifiedUser(ctx, req.Email)
+		if err != nil {
+			return ErrSessionExpired
+		}
+
+		otp, err := GenerateOTP()
+		if err != nil {
+			return err
+		}
+
+		otpHash := HashOTP(otp)
+		if err := s.otpStore.SaveVerificationOTP(ctx, req.Email, otpHash); err != nil {
+			return err
+		}
+
+		// Refresh the UnverifiedUser TTL
+		if err := s.otpStore.SaveUnverifiedUser(ctx, req.Email, unverifiedUser); err != nil {
+			return err
+		}
+
+		_ = s.otpStore.SetOTPCooldown(ctx, req.Email)
+
+		return s.emailQueue.Enqueue(ctx, EmailJob{
+			Email: req.Email,
+			OTP:   otp,
+		})
+	} else if req.Intent == "forgot_password" {
+		user, err := s.userRepository.FindByEmail(ctx, req.Email)
+		if err != nil {
+			return nil // Silently ignore if user not found for security
+		}
+
+		otp, err := GenerateOTP()
+		if err != nil {
+			return err
+		}
+
+		otpHash := HashOTP(otp)
+		if err := s.otpStore.SavePasswordResetOTP(ctx, user.Email, otpHash); err != nil {
+			return err
+		}
+
+		_ = s.otpStore.SetOTPCooldown(ctx, req.Email)
+
+		return s.emailQueue.Enqueue(ctx, EmailJob{
+			Email: user.Email,
+			OTP:   otp,
+		})
+	}
+
+	return nil
 }
 
 func isStrongPassword(s string) bool {

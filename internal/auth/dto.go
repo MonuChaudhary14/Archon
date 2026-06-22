@@ -39,9 +39,21 @@ type ForgotPasswordRequest struct {
 	Email string `json:"email" binding:"required,email"`
 }
 
+type VerifyResetOTPRequest struct {
+	Email string `json:"email" binding:"required,email"`
+	OTP   string `json:"otp" binding:"required"`
+}
+
+type VerifyResetOTPResponse struct {
+	ResetToken string `json:"reset_token"`
+}
+
 type ResetPasswordRequest struct {
-	Email       string `json:"email" binding:"required,email"`
-	OTP         string `json:"otp" binding:"required"`
+	ResetToken  string `json:"reset_token" binding:"required"`
 	NewPassword string `json:"new_password" binding:"required,min=8,max=30"`
 }
 
+type ResendOTPRequest struct {
+	Email  string `json:"email" binding:"required,email"`
+	Intent string `json:"intent" binding:"required,oneof=register forgot_password"`
+}
