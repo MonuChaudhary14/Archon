@@ -4,11 +4,13 @@ import (
 	"context"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/MonuChaudhary14/sys/internal/auth"
 	"github.com/MonuChaudhary14/sys/internal/cache"
 	"github.com/MonuChaudhary14/sys/internal/database"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -75,6 +77,18 @@ func main() {
 	)
 
 	router := gin.Default()
+
+	allowedOrigins := os.Getenv("FRONTEND_URL")
+	if allowedOrigins == "" {
+		allowedOrigins = "http://localhost:3000"
+	}
+
+	corsConfig := cors.DefaultConfig()
+	corsConfig.AllowOrigins = strings.Split(allowedOrigins, ",")
+	corsConfig.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
+	corsConfig.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization"}
+	corsConfig.AllowCredentials = true
+	router.Use(cors.New(corsConfig))
 
 	authGroup := router.Group("/") 
 	auth.RegisterRoutes(authGroup, authHandler, os.Getenv("JWT_SECRET"))
