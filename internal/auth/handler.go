@@ -20,6 +20,16 @@ func NewHandler(
 	}
 }
 
+// Register godoc
+// @Summary Register a new user
+// @Description Register a new user with name, email and password
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body RegisterRequest true "Registration Info"
+// @Success 201 {object} response.APIResponse{data=UserResponse}
+// @Failure 400 {object} response.APIResponse
+// @Router /register [post]
 func (h *Handler) Register(c *gin.Context) {
 	var req RegisterRequest
 
@@ -43,6 +53,16 @@ func (h *Handler) Register(c *gin.Context) {
 	response.Success(c, http.StatusCreated, "user registered successfully", user)
 }
 
+// VerifyEmail godoc
+// @Summary Verify email with OTP
+// @Description Verify email using the OTP sent to the user
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body VerifyEmailRequest true "Verify Email Info"
+// @Success 200 {object} response.APIResponse
+// @Failure 400 {object} response.APIResponse
+// @Router /verify-email [post]
 func (h *Handler) VerifyEmail(
 	c *gin.Context,
 ) {
@@ -70,6 +90,17 @@ func (h *Handler) VerifyEmail(
 	response.Success(c, http.StatusOK, "email verified successfully", nil)
 }
 
+// Login godoc
+// @Summary Login user
+// @Description Login with email and password
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body LoginRequest true "Login Info"
+// @Success 200 {object} response.APIResponse{data=LoginResponse}
+// @Failure 400 {object} response.APIResponse
+// @Failure 401 {object} response.APIResponse
+// @Router /login [post]
 func (h *Handler) Login(
 	c *gin.Context,
 ) {
@@ -101,6 +132,17 @@ func (h *Handler) Login(
 	response.Success(c, http.StatusOK, "logged in successfully", resp)
 }
 
+// Refresh godoc
+// @Summary Refresh token
+// @Description Refresh access token using refresh token
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body RefreshRequest false "Refresh Token Info"
+// @Success 200 {object} response.APIResponse{data=LoginResponse}
+// @Failure 400 {object} response.APIResponse
+// @Failure 401 {object} response.APIResponse
+// @Router /refresh [post]
 func (h *Handler) Refresh(
 	c *gin.Context,
 ) {
@@ -134,6 +176,18 @@ func (h *Handler) Refresh(
 	response.Success(c, http.StatusOK, "token refreshed successfully", resp)
 }
 
+// Logout godoc
+// @Summary Logout user
+// @Description Logout user and invalidate refresh token
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body LogoutRequest false "Logout Info"
+// @Success 200 {object} response.APIResponse
+// @Failure 400 {object} response.APIResponse
+// @Failure 401 {object} response.APIResponse
+// @Security BearerAuth
+// @Router /logout [post]
 func (h *Handler) Logout(c *gin.Context) {
 	var req LogoutRequest
 
@@ -159,6 +213,16 @@ func (h *Handler) Logout(c *gin.Context) {
 	response.Success(c, http.StatusOK, "logged out successfully", nil)
 }
 
+// ForgotPassword godoc
+// @Summary Forgot password
+// @Description Request a password reset email
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body ForgotPasswordRequest true "Forgot Password Info"
+// @Success 200 {object} response.APIResponse
+// @Failure 400 {object} response.APIResponse
+// @Router /forgot-password [post]
 func (h *Handler) ForgotPassword(c *gin.Context) {
 	var req ForgotPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -173,6 +237,16 @@ func (h *Handler) ForgotPassword(c *gin.Context) {
 	response.Success(c, http.StatusOK, "if an account with that email exists, a password reset email has been sent", nil)
 }
 
+// VerifyResetOTP godoc
+// @Summary Verify reset password OTP
+// @Description Verify the OTP sent for password reset
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body VerifyResetOTPRequest true "Verify Reset OTP Info"
+// @Success 200 {object} response.APIResponse{data=VerifyResetOTPResponse}
+// @Failure 400 {object} response.APIResponse
+// @Router /verify-reset-otp [post]
 func (h *Handler) VerifyResetOTP(c *gin.Context) {
 	var req VerifyResetOTPRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -192,6 +266,16 @@ func (h *Handler) VerifyResetOTP(c *gin.Context) {
 	response.Success(c, http.StatusOK, "otp verified", resp)
 }
 
+// ResetPassword godoc
+// @Summary Reset password
+// @Description Reset password using reset token
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body ResetPasswordRequest true "Reset Password Info"
+// @Success 200 {object} response.APIResponse
+// @Failure 400 {object} response.APIResponse
+// @Router /reset-password [post]
 func (h *Handler) ResetPassword(c *gin.Context) {
 	var req ResetPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -210,6 +294,16 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 	response.Success(c, http.StatusOK, "password reset successfully", nil)
 }
 
+// ResendOTP godoc
+// @Summary Resend OTP
+// @Description Resend OTP for email verification or password reset
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body ResendOTPRequest true "Resend OTP Info"
+// @Success 200 {object} response.APIResponse
+// @Failure 400 {object} response.APIResponse
+// @Router /resend-otp [post]
 func (h *Handler) ResendOTP(c *gin.Context) {
 	var req ResendOTPRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

@@ -1,100 +1,34 @@
 package main
 
 import (
-	"context"
 	"log"
-	"os"
-	"strings"
 
-	"github.com/MonuChaudhary14/sys/internal/auth"
-	"github.com/MonuChaudhary14/sys/internal/cache"
-	"github.com/MonuChaudhary14/sys/internal/database"
-
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
+	_ "github.com/MonuChaudhary14/sys/docs"
+	"github.com/MonuChaudhary14/sys/internal/server"
 	"github.com/joho/godotenv"
 )
 
-func main() {
+// @title           Sys API
+// @version         1.0
+// @description     This is the Sys API server.
 
+// @host      localhost:8080
+// @BasePath  /
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env file found, using environment variables")
 	}
 
-	db, err := database.NewPostgresPool(
-		os.Getenv("DATABASE_URL"),
-	)
+	srv, err := server.NewServer()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	redisClient := cache.NewRedisClient()
-
-	if err := cache.Ping(redisClient); err != nil {
-		log.Fatal(err)
-	}
-
-	log.Println("PostgreSQL Connected")
-	log.Println("Redis Connected")
-
-	userRepository := auth.NewPostgresUserRepository(db)
-
-	otpStore := auth.NewOTPStore(
-		redisClient,
-	)
-
-	mailService := auth.NewMailService(
-		os.Getenv("SMTP_HOST"),
-		os.Getenv("SMTP_PORT"),
-		os.Getenv("SMTP_USERNAME"),
-		os.Getenv("SMTP_PASSWORD"),
-	)
-
-	emailQueue := auth.NewEmailQueue(
-		redisClient,
-	)
-
-	worker := auth.NewEmailWorker(
-		redisClient,
-		mailService,
-	)
-
-	go worker.Start(
-		context.Background(),
-	)
-
-	authService := auth.NewAuthService(
-		userRepository,
-		otpStore,
-		mailService,
-		emailQueue,
-		os.Getenv("JWT_SECRET"),
-
-	)
-
-	authHandler := auth.NewHandler(
-		authService,
-	)
-
-	router := gin.Default()
-
-	allowedOrigins := os.Getenv("FRONTEND_URL")
-	if allowedOrigins == "" {
-		allowedOrigins = "http://localhost:3000"
-	}
-
-	corsConfig := cors.DefaultConfig()
-	corsConfig.AllowOrigins = strings.Split(allowedOrigins, ",")
-	corsConfig.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
-	corsConfig.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization"}
-	corsConfig.AllowCredentials = true
-	router.Use(cors.New(corsConfig))
-
-	authGroup := router.Group("/") 
-	auth.RegisterRoutes(authGroup, authHandler, os.Getenv("JWT_SECRET"))
-
-	if err := router.Run(":8080"); err != nil {
+	if err := srv.Run(":8080"); err != nil {
 		log.Fatal(err)
 	}
 }
-
