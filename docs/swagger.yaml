@@ -47,6 +47,7 @@ definitions:
         minLength: 2
         type: string
       password:
+        maxLength: 30
         minLength: 8
         type: string
     required:
@@ -54,18 +55,30 @@ definitions:
     - name
     - password
     type: object
-  auth.ResetPasswordRequest:
+  auth.ResendOTPRequest:
     properties:
       email:
         type: string
-      new_password:
-        type: string
-      otp:
+      intent:
+        enum:
+        - register
+        - forgot_password
         type: string
     required:
     - email
+    - intent
+    type: object
+  auth.ResetPasswordRequest:
+    properties:
+      new_password:
+        maxLength: 30
+        minLength: 8
+        type: string
+      reset_token:
+        type: string
+    required:
     - new_password
-    - otp
+    - reset_token
     type: object
   auth.UserResponse:
     properties:
@@ -83,6 +96,21 @@ definitions:
       otp:
         type: string
     type: object
+  auth.VerifyResetOTPRequest:
+    properties:
+      email:
+        type: string
+      otp:
+        type: string
+    required:
+    - email
+    - otp
+    type: object
+  auth.VerifyResetOTPResponse:
+    properties:
+      reset_token:
+        type: string
+    type: object
   response.APIResponse:
     properties:
       data: {}
@@ -93,20 +121,20 @@ definitions:
       success:
         type: boolean
     type: object
-host: archon.monu14.me
+host: localhost:8080
 info:
   contact: {}
-  description: This is a production-ready JWT Authentication server.
-  title: Authentication API
+  description: This is the Sys API server.
+  title: Sys API
   version: "1.0"
 paths:
   /forgot-password:
     post:
       consumes:
       - application/json
-      description: Initiates the password reset process by sending an OTP
+      description: Request a password reset email
       parameters:
-      - description: Forgot password payload
+      - description: Forgot Password Info
         in: body
         name: request
         required: true
@@ -125,14 +153,14 @@ paths:
             $ref: '#/definitions/response.APIResponse'
       summary: Forgot password
       tags:
-      - Authentication
+      - auth
   /login:
     post:
       consumes:
       - application/json
-      description: Authenticates a user and returns access/refresh tokens
+      description: Login with email and password
       parameters:
-      - description: Login payload
+      - description: Login Info
         in: body
         name: request
         required: true
@@ -160,17 +188,16 @@ paths:
             $ref: '#/definitions/response.APIResponse'
       summary: Login user
       tags:
-      - Authentication
+      - auth
   /logout:
     post:
       consumes:
       - application/json
-      description: Invalidates a user's refresh token
+      description: Logout user and invalidate refresh token
       parameters:
-      - description: Logout payload
+      - description: Logout Info
         in: body
         name: request
-        required: true
         schema:
           $ref: '#/definitions/auth.LogoutRequest'
       produces:
@@ -188,19 +215,20 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/response.APIResponse'
+      security:
+      - BearerAuth: []
       summary: Logout user
       tags:
-      - Authentication
+      - auth
   /refresh:
     post:
       consumes:
       - application/json
-      description: Refreshes the JWT access token using a valid refresh token
+      description: Refresh access token using refresh token
       parameters:
-      - description: Refresh token payload
+      - description: Refresh Token Info
         in: body
         name: request
-        required: true
         schema:
           $ref: '#/definitions/auth.RefreshRequest'
       produces:
@@ -223,16 +251,16 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/response.APIResponse'
-      summary: Refresh access token
+      summary: Refresh token
       tags:
-      - Authentication
+      - auth
   /register:
     post:
       consumes:
       - application/json
-      description: Creates a new user and sends an OTP for email verification
+      description: Register a new user with name, email and password
       parameters:
-      - description: Registration payload
+      - description: Registration Info
         in: body
         name: request
         required: true
@@ -256,14 +284,40 @@ paths:
             $ref: '#/definitions/response.APIResponse'
       summary: Register a new user
       tags:
-      - Authentication
+      - auth
+  /resend-otp:
+    post:
+      consumes:
+      - application/json
+      description: Resend OTP for email verification or password reset
+      parameters:
+      - description: Resend OTP Info
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.ResendOTPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      summary: Resend OTP
+      tags:
+      - auth
   /reset-password:
     post:
       consumes:
       - application/json
-      description: Resets a user's password using an OTP
+      description: Reset password using reset token
       parameters:
-      - description: Reset password payload
+      - description: Reset Password Info
         in: body
         name: request
         required: true
@@ -282,14 +336,14 @@ paths:
             $ref: '#/definitions/response.APIResponse'
       summary: Reset password
       tags:
-      - Authentication
+      - auth
   /verify-email:
     post:
       consumes:
       - application/json
-      description: Verifies a user's email using an OTP
+      description: Verify email using the OTP sent to the user
       parameters:
-      - description: Verify email payload
+      - description: Verify Email Info
         in: body
         name: request
         required: true
@@ -306,7 +360,43 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/response.APIResponse'
-      summary: Verify user email
+      summary: Verify email with OTP
       tags:
-      - Authentication
+      - auth
+  /verify-reset-otp:
+    post:
+      consumes:
+      - application/json
+      description: Verify the OTP sent for password reset
+      parameters:
+      - description: Verify Reset OTP Info
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.VerifyResetOTPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.VerifyResetOTPResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      summary: Verify reset password OTP
+      tags:
+      - auth
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"
