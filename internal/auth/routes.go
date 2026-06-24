@@ -4,7 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterRoutes(rg *gin.RouterGroup, handler *Handler, jwtSecret string) {
+func RegisterRoutes(rg *gin.RouterGroup, handler *Handler, jwtSecret string, repo UserRepository) {
 	
 	limiter := NewIPRateLimiter(5, 10)
 	rg.Use(RateLimiterMiddleware(limiter))
@@ -19,6 +19,6 @@ func RegisterRoutes(rg *gin.RouterGroup, handler *Handler, jwtSecret string) {
 	rg.POST("/resend-otp", handler.ResendOTP)
 
 	protected := rg.Group("/")
-	protected.Use(AuthMiddleware(jwtSecret))
+	protected.Use(AuthMiddleware(jwtSecret, repo))
 	protected.POST("/logout", handler.Logout)
 }

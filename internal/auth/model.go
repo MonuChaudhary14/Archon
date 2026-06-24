@@ -8,6 +8,7 @@ type User struct {
 	Email        string
 	PasswordHash string
 	IsVerified   bool
+	TokenVersion int
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }

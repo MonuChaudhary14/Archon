@@ -21,6 +21,7 @@ type postgresUserRepository struct {
 
 func NewPostgresUserRepository(pool *pgxpool.Pool) UserRepository {
 	_, _ = pool.Exec(context.Background(), `ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS is_used BOOLEAN DEFAULT FALSE;`)
+	_, _ = pool.Exec(context.Background(), `ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT DEFAULT 1;`)
 
 	return &postgresUserRepository{
 		pool: pool,
@@ -54,15 +55,17 @@ func (r *postgresUserRepository) CreateUser(ctx context.Context, user *User) err
 			name,
 			email,
 			password_hash,
-			is_verified
+			is_verified,
+			token_version
 		)
 		VALUES (
 			$1,
 			$2,
 			$3,
-			$4
+			$4,
+			1
 		)
-		RETURNING id
+		RETURNING id, token_version
 	`
 
 	return r.db.QueryRow(
@@ -74,6 +77,7 @@ func (r *postgresUserRepository) CreateUser(ctx context.Context, user *User) err
 		user.IsVerified,
 	).Scan(
 		&user.ID,
+		&user.TokenVersion,
 	)
 }
 
@@ -86,6 +90,7 @@ func (r *postgresUserRepository) FindByEmail(ctx context.Context, email string) 
 			email,
 			password_hash,
 			is_verified,
+			token_version,
 			created_at,
 			updated_at
 		FROM users
@@ -100,6 +105,7 @@ func (r *postgresUserRepository) FindByEmail(ctx context.Context, email string) 
 		&user.Email,
 		&user.PasswordHash,
 		&user.IsVerified,
+		&user.TokenVersion,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -120,6 +126,7 @@ func (r *postgresUserRepository) FindByID(ctx context.Context, id uint) (*User, 
 			email,
 			password_hash,
 			is_verified,
+			token_version,
 			created_at,
 			updated_at
 		FROM users
@@ -138,6 +145,7 @@ func (r *postgresUserRepository) FindByID(ctx context.Context, id uint) (*User, 
 		&user.Email,
 		&user.PasswordHash,
 		&user.IsVerified,
+		&user.TokenVersion,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -244,5 +252,11 @@ func (r *postgresUserRepository) RevokeAllUserTokens(ctx context.Context, userID
 func (r *postgresUserRepository) UpdatePassword(ctx context.Context, email string, hashedPassword string) error {
 	query := `UPDATE users SET password_hash = $1, updated_at = NOW() WHERE email = $2`
 	_, err := r.db.Exec(ctx, query, hashedPassword, email)
+	return err
+}
+
+func (r *postgresUserRepository) IncrementTokenVersion(ctx context.Context, userID uint) error {
+	query := `UPDATE users SET token_version = token_version + 1, updated_at = NOW() WHERE id = $1`
+	_, err := r.db.Exec(ctx, query, userID)
 	return err
 }

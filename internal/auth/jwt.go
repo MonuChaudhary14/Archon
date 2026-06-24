@@ -8,8 +8,9 @@ import (
 )
 
 type Claims struct {
-	UserID uint   `json:"user_id"`
-	Email  string `json:"email"`
+	UserID       uint   `json:"user_id"`
+	Email        string `json:"email"`
+	TokenVersion int    `json:"token_version"`
 	jwt.RegisteredClaims
 }
 
@@ -19,8 +20,9 @@ func GenerateAccessToken(
 ) (string, error) {
 
 	claims := Claims{
-		UserID: user.ID,
-		Email:  user.Email,
+		UserID:       user.ID,
+		Email:        user.Email,
+		TokenVersion: user.TokenVersion,
 
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(

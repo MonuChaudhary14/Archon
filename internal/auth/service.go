@@ -458,6 +458,8 @@ func (s *authService) ResetPassword(
 		}
 		// Revoke all tokens within the transaction
 		_ = txRepo.RevokeAllUserTokens(ctx, user.ID)
+		// Increment Token Version to instantly revoke active access tokens
+		_ = txRepo.IncrementTokenVersion(ctx, user.ID)
 		return nil
 	})
 

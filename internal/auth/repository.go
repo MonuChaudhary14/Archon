@@ -23,5 +23,7 @@ type UserRepository interface {
 
 	UpdatePassword(ctx context.Context, email string, hashedPassword string) error
 
+	IncrementTokenVersion(ctx context.Context, userID uint) error
+
 	RunInTx(ctx context.Context, fn func(txRepo UserRepository) error) error
 }
