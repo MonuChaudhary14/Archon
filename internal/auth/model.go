@@ -8,6 +8,7 @@ type User struct {
 	Email        string
 	PasswordHash string
 	IsVerified   bool
+	TokenVersion int
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
@@ -25,4 +26,12 @@ type UnverifiedUser struct {
 	Name         string `json:"name"`
 	Email        string `json:"email"`
 	PasswordHash string `json:"password_hash"`
+}
+
+type OAuthConnection struct {
+	ID             uint
+	UserID         uint
+	Provider       string
+	ProviderUserID string
+	CreatedAt      time.Time
 }

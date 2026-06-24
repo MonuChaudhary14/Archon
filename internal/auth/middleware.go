@@ -12,7 +12,7 @@ const (
 	ContextEmailKey  = "email"
 )
 
-func AuthMiddleware(secret string) gin.HandlerFunc {
+func AuthMiddleware(secret string, repo UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString, err := c.Cookie("access_token")
 		if err != nil || tokenString == "" {
@@ -35,6 +35,13 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 		claims, err := ValidateAccessToken(tokenString, secret)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
+			c.Abort()
+			return
+		}
+
+		user, err := repo.FindByID(c.Request.Context(), claims.UserID)
+		if err != nil || user.TokenVersion != claims.TokenVersion {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "token has been revoked"})
 			c.Abort()
 			return
 		}

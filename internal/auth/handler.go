@@ -6,17 +6,24 @@ import (
 
 	"github.com/MonuChaudhary14/sys/pkg/response"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/oauth2"
 )
 
 type Handler struct {
-	authService AuthService
+	authService    AuthService
+	oauthProviders map[string]OAuthProvider
+	frontendURL    string
 }
 
 func NewHandler(
 	authService AuthService,
+	oauthProviders map[string]OAuthProvider,
+	frontendURL string,
 ) *Handler {
 	return &Handler{
-		authService: authService,
+		authService:    authService,
+		oauthProviders: oauthProviders,
+		frontendURL:    frontendURL,
 	}
 }
 
@@ -130,6 +137,57 @@ func (h *Handler) Login(
 	c.SetCookie("refresh_token", resp.RefreshToken, 7*24*60*60, "/", "", true, true)
 
 	response.Success(c, http.StatusOK, "logged in successfully", resp)
+}
+
+func (h *Handler) OAuthLoginInitiate(c *gin.Context) {
+	providerName := c.Param("provider")
+	provider, exists := h.oauthProviders[providerName]
+	if !exists {
+		response.Error(c, http.StatusBadRequest, "unsupported oauth provider")
+		return
+	}
+
+	url := provider.GetConfig().AuthCodeURL("state-token", oauth2.AccessTypeOffline)
+	c.Redirect(http.StatusTemporaryRedirect, url)
+}
+
+func (h *Handler) OAuthCallback(c *gin.Context) {
+	providerName := c.Param("provider")
+	provider, exists := h.oauthProviders[providerName]
+	if !exists {
+		response.Error(c, http.StatusBadRequest, "unsupported oauth provider")
+		return
+	}
+
+	code := c.Query("code")
+	if code == "" {
+		response.Error(c, http.StatusBadRequest, "code not found")
+		return
+	}
+
+	token, err := provider.GetConfig().Exchange(c.Request.Context(), code)
+	if err != nil {
+		response.Error(c, http.StatusUnauthorized, "failed to exchange token")
+		return
+	}
+
+	userInfo, err := provider.GetUserInfo(c.Request.Context(), token)
+	if err != nil {
+		response.Error(c, http.StatusUnauthorized, "failed to get user info")
+		return
+	}
+
+	resp, err := h.authService.OAuthLogin(c.Request.Context(), providerName, userInfo)
+	if err != nil {
+		response.Error(c, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	c.SetSameSite(http.SameSiteNoneMode)
+	c.SetCookie("access_token", resp.AccessToken, 15*60, "/", "", true, true)
+	c.SetCookie("refresh_token", resp.RefreshToken, 7*24*60*60, "/", "", true, true)
+
+	c.Redirect(http.StatusFound, h.frontendURL+"/dashboard")
 }
 
 // Refresh godoc
