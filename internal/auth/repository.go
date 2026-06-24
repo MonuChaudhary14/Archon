@@ -25,5 +25,9 @@ type UserRepository interface {
 
 	IncrementTokenVersion(ctx context.Context, userID uint) error
 
+	SaveOAuthConnection(ctx context.Context, connection *OAuthConnection) error
+
+	FindOAuthConnection(ctx context.Context, provider, providerUserID string) (*OAuthConnection, error)
+
 	RunInTx(ctx context.Context, fn func(txRepo UserRepository) error) error
 }

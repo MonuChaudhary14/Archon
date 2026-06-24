@@ -22,6 +22,16 @@ type postgresUserRepository struct {
 func NewPostgresUserRepository(pool *pgxpool.Pool) UserRepository {
 	_, _ = pool.Exec(context.Background(), `ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS is_used BOOLEAN DEFAULT FALSE;`)
 	_, _ = pool.Exec(context.Background(), `ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT DEFAULT 1;`)
+	_, _ = pool.Exec(context.Background(), `
+		CREATE TABLE IF NOT EXISTS oauth_connections (
+			id SERIAL PRIMARY KEY,
+			user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			provider VARCHAR(50) NOT NULL,
+			provider_user_id VARCHAR(255) NOT NULL,
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+			UNIQUE(provider, provider_user_id)
+		);
+	`)
 
 	return &postgresUserRepository{
 		pool: pool,
@@ -260,3 +270,55 @@ func (r *postgresUserRepository) IncrementTokenVersion(ctx context.Context, user
 	_, err := r.db.Exec(ctx, query, userID)
 	return err
 }
+
+func (r *postgresUserRepository) SaveOAuthConnection(ctx context.Context, connection *OAuthConnection) error {
+	query := `
+		INSERT INTO oauth_connections (
+			user_id,
+			provider,
+			provider_user_id
+		)
+		VALUES (
+			$1,
+			$2,
+			$3
+		)
+		RETURNING id, created_at
+	`
+	return r.db.QueryRow(
+		ctx,
+		query,
+		connection.UserID,
+		connection.Provider,
+		connection.ProviderUserID,
+	).Scan(
+		&connection.ID,
+		&connection.CreatedAt,
+	)
+}
+
+func (r *postgresUserRepository) FindOAuthConnection(ctx context.Context, provider, providerUserID string) (*OAuthConnection, error) {
+	query := `
+		SELECT
+			id,
+			user_id,
+			provider,
+			provider_user_id,
+			created_at
+		FROM oauth_connections
+		WHERE provider = $1 AND provider_user_id = $2
+	`
+	var conn OAuthConnection
+	err := r.db.QueryRow(ctx, query, provider, providerUserID).Scan(
+		&conn.ID,
+		&conn.UserID,
+		&conn.Provider,
+		&conn.ProviderUserID,
+		&conn.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &conn, nil
+}
+

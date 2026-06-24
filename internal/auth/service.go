@@ -18,6 +18,12 @@ type AuthService interface {
 		req LoginRequest,
 	) (*LoginResponse, error)
 
+	OAuthLogin(
+		ctx context.Context,
+		provider string,
+		userInfo *OAuthUserInfo,
+	) (*LoginResponse, error)
+
 	VerifyEmail(
 		ctx context.Context,
 		req VerifyEmailRequest,
@@ -221,6 +227,80 @@ func (s *authService) Login(
 			ExpiresAt: time.Now().Add(
 				30 * 24 * time.Hour,
 			),
+		},
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &LoginResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
+}
+
+func (s *authService) OAuthLogin(
+	ctx context.Context,
+	provider string,
+	userInfo *OAuthUserInfo,
+) (*LoginResponse, error) {
+
+	if userInfo.Email == "" {
+		return nil, ErrInvalidCredentials
+	}
+
+	connection, err := s.userRepository.FindOAuthConnection(ctx, provider, userInfo.ID)
+	var user *User
+
+	if err == nil && connection != nil {
+		user, err = s.userRepository.FindByID(ctx, connection.UserID)
+		if err != nil {
+			return nil, ErrUserNotFound
+		}
+	} else {
+		user, err = s.userRepository.FindByEmail(ctx, userInfo.Email)
+		if err != nil {
+			user = &User{
+				Name:         userInfo.Name,
+				Email:        userInfo.Email,
+				PasswordHash: "",
+				IsVerified:   true,
+			}
+			err = s.userRepository.CreateUser(ctx, user)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		err = s.userRepository.SaveOAuthConnection(ctx, &OAuthConnection{
+			UserID:         user.ID,
+			Provider:       provider,
+			ProviderUserID: userInfo.ID,
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	accessToken, err := GenerateAccessToken(user, s.jwtSecret)
+	if err != nil {
+		return nil, err
+	}
+
+	refreshToken, err := GenerateRefreshToken()
+	if err != nil {
+		return nil, err
+	}
+
+	refreshTokenHash := HashToken(refreshToken)
+
+	err = s.userRepository.SaveRefreshToken(
+		ctx,
+		&RefreshToken{
+			UserID:    user.ID,
+			TokenHash: refreshTokenHash,
+			ExpiresAt: time.Now().Add(30 * 24 * time.Hour),
 		},
 	)
 

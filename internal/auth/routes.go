@@ -18,6 +18,9 @@ func RegisterRoutes(rg *gin.RouterGroup, handler *Handler, jwtSecret string, rep
 	rg.POST("/reset-password", handler.ResetPassword)
 	rg.POST("/resend-otp", handler.ResendOTP)
 
+	rg.GET("/login/:provider", handler.OAuthLoginInitiate)
+	rg.GET("/callback/:provider", handler.OAuthCallback)
+
 	protected := rg.Group("/")
 	protected.Use(AuthMiddleware(jwtSecret, repo))
 	protected.POST("/logout", handler.Logout)

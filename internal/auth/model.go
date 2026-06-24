@@ -27,3 +27,11 @@ type UnverifiedUser struct {
 	Email        string `json:"email"`
 	PasswordHash string `json:"password_hash"`
 }
+
+type OAuthConnection struct {
+	ID             uint
+	UserID         uint
+	Provider       string
+	ProviderUserID string
+	CreatedAt      time.Time
+}
