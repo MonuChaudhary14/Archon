@@ -139,6 +139,14 @@ func (h *Handler) Login(
 	response.Success(c, http.StatusOK, "logged in successfully", resp)
 }
 
+// OAuthLoginInitiate godoc
+// @Summary Initiate OAuth Login
+// @Description Redirects the user to the specified OAuth provider's login page
+// @Tags auth
+// @Param provider path string true "OAuth Provider (google or github)"
+// @Success 307 "Temporary Redirect to OAuth Provider"
+// @Failure 400 {object} response.APIResponse
+// @Router /login/{provider} [get]
 func (h *Handler) OAuthLoginInitiate(c *gin.Context) {
 	providerName := c.Param("provider")
 	provider, exists := h.oauthProviders[providerName]
@@ -151,6 +159,16 @@ func (h *Handler) OAuthLoginInitiate(c *gin.Context) {
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
+// OAuthCallback godoc
+// @Summary OAuth Callback Handler
+// @Description Handles the callback from the OAuth provider, exchanges the code for tokens, logs the user in, and redirects to the frontend dashboard.
+// @Tags auth
+// @Param provider path string true "OAuth Provider (google or github)"
+// @Param code query string true "Authorization Code from provider"
+// @Success 302 "Redirect to Frontend Dashboard"
+// @Failure 400 {object} response.APIResponse
+// @Failure 401 {object} response.APIResponse
+// @Router /callback/{provider} [get]
 func (h *Handler) OAuthCallback(c *gin.Context) {
 	providerName := c.Param("provider")
 	provider, exists := h.oauthProviders[providerName]
