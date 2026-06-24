@@ -9,6 +9,48 @@
     "host": "localhost:8080",
     "basePath": "/",
     "paths": {
+        "/callback/{provider}": {
+            "get": {
+                "description": "Handles the callback from the OAuth provider, exchanges the code for tokens, logs the user in, and redirects to the frontend dashboard.",
+                "tags": [
+                    "auth"
+                ],
+                "summary": "OAuth Callback Handler",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "OAuth Provider (google or github)",
+                        "name": "provider",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Authorization Code from provider",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirect to Frontend Dashboard"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/forgot-password": {
             "post": {
                 "description": "Request a password reset email",
@@ -100,6 +142,35 @@
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/login/{provider}": {
+            "get": {
+                "description": "Redirects the user to the specified OAuth provider's login page",
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Initiate OAuth Login",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "OAuth Provider (google or github)",
+                        "name": "provider",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "307": {
+                        "description": "Temporary Redirect to OAuth Provider"
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/response.APIResponse"
                         }

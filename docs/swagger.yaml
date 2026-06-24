@@ -128,6 +128,35 @@ info:
   title: Sys API
   version: "1.0"
 paths:
+  /callback/{provider}:
+    get:
+      description: Handles the callback from the OAuth provider, exchanges the code
+        for tokens, logs the user in, and redirects to the frontend dashboard.
+      parameters:
+      - description: OAuth Provider (google or github)
+        in: path
+        name: provider
+        required: true
+        type: string
+      - description: Authorization Code from provider
+        in: query
+        name: code
+        required: true
+        type: string
+      responses:
+        "302":
+          description: Redirect to Frontend Dashboard
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      summary: OAuth Callback Handler
+      tags:
+      - auth
   /forgot-password:
     post:
       consumes:
@@ -187,6 +216,25 @@ paths:
           schema:
             $ref: '#/definitions/response.APIResponse'
       summary: Login user
+      tags:
+      - auth
+  /login/{provider}:
+    get:
+      description: Redirects the user to the specified OAuth provider's login page
+      parameters:
+      - description: OAuth Provider (google or github)
+        in: path
+        name: provider
+        required: true
+        type: string
+      responses:
+        "307":
+          description: Temporary Redirect to OAuth Provider
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      summary: Initiate OAuth Login
       tags:
       - auth
   /logout:
