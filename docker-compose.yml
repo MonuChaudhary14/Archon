@@ -5,15 +5,11 @@ services:
     build: .
     ports:
       - "8071:8080"
+    env_file:
+      - .env
     environment:
       - DATABASE_URL=postgres://sysuser:syspassword@db:5432/sys?sslmode=disable
       - REDIS_ADDR=redis:6379
-      - JWT_SECRET=${JWT_SECRET}
-      - SMTP_HOST=${SMTP_HOST}
-      - SMTP_PORT=${SMTP_PORT}
-      - SMTP_USERNAME=${SMTP_USERNAME}
-      - SMTP_PASSWORD=${SMTP_PASSWORD}
-      - FRONTEND_URL=${FRONTEND_URL}
     depends_on:
       - db
       - redis
