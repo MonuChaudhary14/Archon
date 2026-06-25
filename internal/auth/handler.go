@@ -205,7 +205,13 @@ func (h *Handler) OAuthCallback(c *gin.Context) {
 	c.SetCookie("access_token", resp.AccessToken, 15*60, "/", "", true, true)
 	c.SetCookie("refresh_token", resp.RefreshToken, 7*24*60*60, "/", "", true, true)
 
-	c.Redirect(http.StatusFound, h.frontendURL+"/dashboard")
+	frontendURLs := strings.Split(h.frontendURL, ",")
+	redirectURL := frontendURLs[0]
+	if redirectURL == "" {
+		redirectURL = "http://localhost:3000"
+	}
+
+	c.Redirect(http.StatusFound, redirectURL+"/dashboard")
 }
 
 // Refresh godoc
