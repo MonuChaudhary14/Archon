@@ -3,67 +3,52 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
-	"github.com/redis/go-redis/v9"
+	"github.com/hibiken/asynq"
 )
 
 type EmailWorker struct {
-	client      *redis.Client
+	server      *asynq.Server
 	mailService *MailService
 }
 
-func NewEmailWorker(
-	client *redis.Client,
-	mailService *MailService,
-) *EmailWorker {
+func NewEmailWorker(redisOpt asynq.RedisClientOpt, mailService *MailService) *EmailWorker {
+	server := asynq.NewServer(
+		redisOpt,
+		asynq.Config{
+			Concurrency: 10,
+		},
+	)
 
 	return &EmailWorker{
-		client:      client,
+		server:      server,
 		mailService: mailService,
 	}
 }
 
-func (w *EmailWorker) Start(ctx context.Context) {
+func (w *EmailWorker) Start() {
+	mux := asynq.NewServeMux()
 
-	for {
+	mux.HandleFunc(TypeEmailDelivery, w.HandleEmailDeliveryTask)
 
-		result, err := w.client.BLPop(
-			ctx,
-			0,
-			"email_queue",
-		).Result()
-
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-
-		var job EmailJob
-
-		err = json.Unmarshal(
-			[]byte(result[1]),
-			&job,
-		)
-
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-
-		err = w.mailService.SendVerificationEmail(
-			job.Email,
-			job.OTP,
-		)
-
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-
-		log.Printf(
-			"Verification email sent to %s",
-			job.Email,
-		)
+	if err := w.server.Start(mux); err != nil {
+		log.Fatalf("could not start asynq worker server: %v", err)
 	}
+}
+
+func (w *EmailWorker) HandleEmailDeliveryTask(ctx context.Context, t *asynq.Task) error {
+	var job EmailJob
+	if err := json.Unmarshal(t.Payload(), &job); err != nil {
+		return fmt.Errorf("json unmarshal failed: %w", err)
+	}
+
+	err := w.mailService.SendVerificationEmail(job.Email, job.OTP)
+	if err != nil {
+		return fmt.Errorf("failed to send email: %w", err)
+	}
+
+	log.Printf("Verification email sent successfully to %s", job.Email)
+	return nil
 }

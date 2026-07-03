@@ -5,9 +5,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/MonuChaudhary14/sys/internal/auth"
-	"github.com/MonuChaudhary14/sys/internal/cache"
-	"github.com/MonuChaudhary14/sys/internal/database"
+	"github.com/MonuChaudhary14/Archon/internal/auth"
+	"github.com/MonuChaudhary14/Archon/internal/cache"
+	"github.com/MonuChaudhary14/Archon/internal/database"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"

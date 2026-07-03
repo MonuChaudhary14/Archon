@@ -1,12 +1,12 @@
 package auth
 
 import (
-	"context"
 	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
+	"github.com/hibiken/asynq"
 )
 
 // Setup initializes all repositories, services, workers, and registers routes for the auth module
@@ -19,10 +19,13 @@ func Setup(db *pgxpool.Pool, redisClient *redis.Client, rg *gin.RouterGroup) {
 		os.Getenv("SMTP_USERNAME"),
 		os.Getenv("SMTP_PASSWORD"),
 	)
-	emailQueue := NewEmailQueue(redisClient)
+	asynqRedisOpt := asynq.RedisClientOpt{
+		Addr: os.Getenv("REDIS_URL"),
+	}
+	emailQueue := NewEmailQueue(asynqRedisOpt)
 
-	worker := NewEmailWorker(redisClient, mailService)
-	go worker.Start(context.Background())
+	worker := NewEmailWorker(asynqRedisOpt, mailService)
+	go worker.Start()
 
 	authService := NewAuthService(
 		userRepository,

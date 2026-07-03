@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/MonuChaudhary14/sys/pkg/response"
+	"github.com/MonuChaudhary14/Archon/pkg/response"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
 )

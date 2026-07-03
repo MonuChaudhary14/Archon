@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	_ "github.com/MonuChaudhary14/sys/docs"
-	"github.com/MonuChaudhary14/sys/internal/server"
+	_ "github.com/MonuChaudhary14/Archon/docs"
+	"github.com/MonuChaudhary14/Archon/internal/server"
 	"github.com/joho/godotenv"
 )
 
