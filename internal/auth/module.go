@@ -20,7 +20,7 @@ func Setup(db *pgxpool.Pool, redisClient *redis.Client, rg *gin.RouterGroup) {
 		os.Getenv("SMTP_PASSWORD"),
 	)
 	asynqRedisOpt := asynq.RedisClientOpt{
-		Addr: os.Getenv("REDIS_URL"),
+		Addr: os.Getenv("REDIS_ADDR"),
 	}
 	emailQueue := NewEmailQueue(asynqRedisOpt)
 
