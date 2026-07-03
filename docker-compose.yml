@@ -8,7 +8,7 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_URL=postgres://sysuser:syspassword@db:5432/sys?sslmode=disable
+      - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}?sslmode=disable
       - REDIS_ADDR=redis:6379
     depends_on:
       - db
@@ -17,13 +17,16 @@ services:
 
   db:
     image: postgres:15-alpine
+    ports:
+      - "5444:5432"
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: sysuser
-      POSTGRES_PASSWORD: syspassword
-      POSTGRES_DB: sys
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     restart: unless-stopped
 
   redis:

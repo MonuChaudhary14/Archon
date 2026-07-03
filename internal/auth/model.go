@@ -3,12 +3,12 @@ package auth
 import "time"
 
 type User struct {
-	ID           uint
-	Name         string
-	Email        string
-	PasswordHash string
-	IsVerified   bool
-	TokenVersion int
+	ID           uint `json:"id"`
+	Name         string `json:"name"`
+	Email        string `json:"email"`
+	PasswordHash string `json:"-"`
+	IsVerified   bool `json:"is_verified"`
+	TokenVersion int `json:"token_version"`
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }

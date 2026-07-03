@@ -20,19 +20,6 @@ type postgresUserRepository struct {
 }
 
 func NewPostgresUserRepository(pool *pgxpool.Pool) UserRepository {
-	_, _ = pool.Exec(context.Background(), `ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS is_used BOOLEAN DEFAULT FALSE;`)
-	_, _ = pool.Exec(context.Background(), `ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT DEFAULT 1;`)
-	_, _ = pool.Exec(context.Background(), `
-		CREATE TABLE IF NOT EXISTS oauth_connections (
-			id SERIAL PRIMARY KEY,
-			user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-			provider VARCHAR(50) NOT NULL,
-			provider_user_id VARCHAR(255) NOT NULL,
-			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-			UNIQUE(provider, provider_user_id)
-		);
-	`)
-
 	return &postgresUserRepository{
 		pool: pool,
 		db:   pool,
