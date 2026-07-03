@@ -8,9 +8,12 @@ import (
 	"github.com/MonuChaudhary14/Archon/internal/auth"
 	"github.com/MonuChaudhary14/Archon/internal/cache"
 	"github.com/MonuChaudhary14/Archon/internal/database"
+	"github.com/MonuChaudhary14/Archon/pkg/middleware"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -47,6 +50,9 @@ func NewServer() (*Server, error) {
 	corsConfig.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization"}
 	corsConfig.AllowCredentials = true
 	router.Use(cors.New(corsConfig))
+
+	router.Use(middleware.MetricsMiddleware())
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Setup modular routing
 	authGroup := router.Group("/")

@@ -35,6 +35,32 @@ services:
       - redis_data:/data
     restart: unless-stopped
 
+  prometheus:
+    image: prom/prometheus:v2.53.1
+    ports:
+      - "${HOST_PROMETHEUS_PORT}:${PROMETHEUS_PORT}"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    ports:
+      - "${HOST_GRAFANA_PORT}:${GRAFANA_PORT}"
+    env_file:
+      - .env
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+    depends_on:
+      - prometheus
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:
+  grafana_data:
