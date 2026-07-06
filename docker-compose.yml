@@ -60,6 +60,20 @@ services:
       - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
     restart: unless-stopped
 
+  ai-agent:
+    build:
+      context : ./ai_engine
+    ports:
+      - "8122:8122"
+    env_file:
+      - ./.env
+    environment:
+      - HUGGINGFACEHUB_API_TOKEN=${HUGGINGFACEHUB_API_TOKEN}
+    restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+
 volumes:
   postgres_data:
   redis_data:
