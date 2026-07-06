@@ -13,7 +13,7 @@ uvicorn = "^0.29.0"
 pydantic-settings = "^2.2.1"
 langchain = "^0.1.16"
 langchain-community = "^0.0.34"
-huggingface_hub = "^0.23.0"
+langchain-groq = "^0.1.0"
 
 [build-system]
 requires = ["poetry-core"]
