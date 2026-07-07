@@ -58,3 +58,6 @@ config.local.json
 config.dev.yaml
 config.dev.yml
 config.dev.json
+
+# Agent rules
+.agents/

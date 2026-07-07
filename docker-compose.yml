@@ -69,6 +69,8 @@ services:
       - ./.env
     environment:
       - GROQ_API_KEY=${GROQ_API_KEY}
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:${DB_PORT}/${DB_NAME}
+      - REDIS_URL=redis://${REDIS_ADDR}
     restart: unless-stopped
     dns:
       - 8.8.8.8

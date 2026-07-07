@@ -14,6 +14,7 @@ def get_llm_service() -> LLMService:
 
 class PromptRequest(BaseModel):
     prompt : str
+    session_id : str = "default"
 
 class PromptResponse(BaseModel):
     response: str
@@ -24,7 +25,7 @@ async def health_check():
 
 @app.post(f"{settings.API_V1_STR}/generate",response_model = PromptResponse)
 async def generate_response(request : PromptRequest, llm_service: LLMService= Depends(get_llm_service)):
-    result = await llm_service.generate_response(request.prompt)
+    result = await llm_service.generate_response(request.prompt,request.session_id)
     return PromptResponse(response=result) 
 
   
