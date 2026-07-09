@@ -9,6 +9,7 @@ import (
 	"github.com/MonuChaudhary14/Archon/internal/cache"
 	"github.com/MonuChaudhary14/Archon/internal/database"
 	"github.com/MonuChaudhary14/Archon/pkg/middleware"
+	"github.com/MonuChaudhary14/Archon/internal/ai"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -57,6 +58,9 @@ func NewServer() (*Server, error) {
 	// Setup modular routing
 	authGroup := router.Group("/")
 	auth.Setup(db, redisClient, authGroup)
+
+	aiGroup := router.Group("/")
+	ai.Setup(aiGroup)
 
 	// Swagger setup
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

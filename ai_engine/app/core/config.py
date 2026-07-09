@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str = ""
     DATABASE_URL: str = ""
     REDIS_URL: str = ""
+    KAFKA_BROKERS: str = ""
     model_config = SettingsConfigDict(
         env_file=".env", 
         env_file_encoding="utf-8", 

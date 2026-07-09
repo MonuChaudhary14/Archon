@@ -1,31 +1,25 @@
-from fastapi import FastAPI, Depends
-from pydantic import BaseModel
+from contextlib import asynccontextmanager
+import asyncio
+from fastapi import FastAPI
 from app.core.config import settings
 from app.services.llm_service import LLMService
+from app.services.kafka_service import KafkaConsumerService
 
-app = FastAPI(
-    title = settings.PROJECT_NAME,
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    llm_service = LLMService()
+    kafka_service = KafkaConsumerService(llm_service)
+
+    task = asyncio.create_task(kafka_service.start())
+    yield
+    task.cancel()
+
+app =FastAPI(
+    title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    openapi_url = f"{settings.API_V1_STR}/openapi.json"
+    lifespan=lifespan
 )
-
-def get_llm_service() -> LLMService:
-    return LLMService()
-
-class PromptRequest(BaseModel):
-    prompt : str
-    session_id : str = "default"
-
-class PromptResponse(BaseModel):
-    response: str
 
 @app.get("/health")
 async def health_check():
-    return {"status":"healthy"}
-
-@app.post(f"{settings.API_V1_STR}/generate",response_model = PromptResponse)
-async def generate_response(request : PromptRequest, llm_service: LLMService= Depends(get_llm_service)):
-    result = await llm_service.generate_response(request.prompt,request.session_id)
-    return PromptResponse(response=result) 
-
-  
+    return {"status" :"healthy"}

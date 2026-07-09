@@ -1,0 +1,57 @@
+package ai
+
+import (
+	"log"
+	"net/http"
+	
+	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
+)
+
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+}
+
+func Setup(router *gin.RouterGroup){
+	hub:= NewHub()
+	kafkaSvc := NewKafkaService(hub)
+
+	go kafkaSvc.StartConsuming()
+
+	router.GET("/ai/chat", func(c*gin.Context){
+		sessionID := c.Query("session_id")
+
+		if sessionID == ""{
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "session_id required",
+			})
+			return
+		}
+
+		ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+
+		if err != nil {
+			log.Println("WebSocket upgrade failed:", err)
+			return
+		}
+		defer ws.Close()
+
+		hub.Register(sessionID, ws)
+		defer hub.Unregister(sessionID)
+
+		for {
+			_, msg, err := ws.ReadMessage()
+			if err != nil {
+				break
+			}
+			if err := kafkaSvc.PublishPrompt(sessionID, string(msg)); err != nil {
+				ws.WriteMessage(websocket.TextMessage, []byte("Error sending message to processing queue"))
+			}
+		}
+	})
+
+}
+
+
