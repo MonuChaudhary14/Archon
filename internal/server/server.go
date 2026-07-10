@@ -2,14 +2,14 @@ package server
 
 import (
 	"log"
-	"os"
-	"strings"
 
+	"github.com/MonuChaudhary14/Archon/internal/ai"
 	"github.com/MonuChaudhary14/Archon/internal/auth"
 	"github.com/MonuChaudhary14/Archon/internal/cache"
 	"github.com/MonuChaudhary14/Archon/internal/database"
+	"github.com/MonuChaudhary14/Archon/internal/interview"
+	"github.com/MonuChaudhary14/Archon/pkg/config"
 	"github.com/MonuChaudhary14/Archon/pkg/middleware"
-	"github.com/MonuChaudhary14/Archon/internal/ai"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -24,8 +24,8 @@ type Server struct {
 	router *gin.Engine
 }
 
-func NewServer() (*Server, error) {
-	db, err := database.NewPostgresPool(os.Getenv("DATABASE_URL"))
+func NewServer(cfg *config.Config) (*Server, error) {
+	db, err := database.NewPostgresPool(cfg.DatabaseURL)
 	if err != nil {
 		return nil, err
 	}
@@ -40,13 +40,8 @@ func NewServer() (*Server, error) {
 
 	router := gin.Default()
 
-	allowedOrigins := os.Getenv("FRONTEND_URL")
-	if allowedOrigins == "" {
-		allowedOrigins = "http://localhost:3000"
-	}
-
 	corsConfig := cors.DefaultConfig()
-	corsConfig.AllowOrigins = strings.Split(allowedOrigins, ",")
+	corsConfig.AllowOrigins = cfg.FrontendURLs
 	corsConfig.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
 	corsConfig.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization"}
 	corsConfig.AllowCredentials = true
@@ -61,6 +56,12 @@ func NewServer() (*Server, error) {
 
 	aiGroup := router.Group("/")
 	ai.Setup(aiGroup)
+
+	interviewRepo := interview.NewRepository(db)
+	interviewService := interview.NewService(interviewRepo)
+	interviewHandler := interview.NewHandler(interviewService)
+
+	router.POST("/api/v1/interviews/start", interviewHandler.StartInterview)
 
 	// Swagger setup
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

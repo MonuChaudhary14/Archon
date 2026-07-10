@@ -5,6 +5,7 @@ import (
 
 	_ "github.com/MonuChaudhary14/Archon/docs"
 	"github.com/MonuChaudhary14/Archon/internal/server"
+	"github.com/MonuChaudhary14/Archon/pkg/config"
 	"github.com/joho/godotenv"
 )
 
@@ -23,12 +24,14 @@ func main() {
 		log.Println("No .env file found, using environment variables")
 	}
 
-	srv, err := server.NewServer()
+	cfg := config.Load()
+
+	srv, err := server.NewServer(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if err := srv.Run(":8080"); err != nil {
+	if err := srv.Run(cfg.Port); err != nil {
 		log.Fatal(err)
 	}
 }
