@@ -2,6 +2,7 @@ package interview
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -37,18 +38,56 @@ func (r *postgresRepository) GetRandomUnansweredQuestion(ctx context.Context, us
 	return &q, nil
 }
 
-func (r *postgresRepository) CreateInterview(ctx context.Context, userID int, questionID string) (string, error) {
-	query := `
+func (r *postgresRepository) CreateInterview(ctx context.Context, userID int, questionID string) (string, error){
+
+	tx, err := r.db.Begin(ctx)
+
+	if err != nil {
+		return "", fmt.Errorf("Failed to begin trasaction: %w", err)
+	}
+
+	defer tx.Rollback(ctx)
+
+	insertInterviewQuery := `
 		INSERT INTO interviews (user_id, question_id) 
 		VALUES ($1, $2) 
 		RETURNING id;
 	`
-	
+
 	var interviewID string
-	err := r.db.QueryRow(ctx, query, userID, questionID).Scan(&interviewID)
-	if err != nil {
-		return "", fmt.Errorf("failed to create interview: %w", err)
+
+	err = tx.QueryRow(ctx, insertInterviewQuery, userID, questionID).Scan(&interviewID)
+
+	if err != nil{
+		return "", fmt.Errorf("Failed to create interview: %w", err)
 	}
-	
+
+	payloadMap := map[string] interface{}{
+		"interview_id" : interviewID,
+		"user_id": userID,
+		"question_id": questionID,
+	}
+
+	payloadBytes, err := json.Marshal(payloadMap)
+
+	if err != nil {
+		return "", fmt.Errorf("Failed to marshal outbook payload: %w", err)
+	}
+
+	insertOutboxQuery := `
+		INSERT INTO outbox_events (aggregate_type, aggregate_id, type, payload)
+		VALUES ('Interview', $1, 'INTERVIEW_STARTED', $2)
+	`
+
+	_, err = tx.Exec(ctx, insertOutboxQuery, interviewID,payloadBytes)
+
+	if err != nil {
+		return "", fmt.Errorf("failed to insert outbox event: %w", err)
+	}
+
+	if err = tx.Commit(ctx); err != nil{
+		return "", fmt.Errorf("Failed to commit transaction: %w", err)
+	}
+
 	return interviewID, nil
 }

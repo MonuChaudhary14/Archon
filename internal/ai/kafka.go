@@ -73,3 +73,12 @@ func (k * KafkaService) StartConsuming(){
 		}
 	}
 }
+
+func (k *KafkaService) PublishEvent(ctx context.Context, key []byte, payload []byte) error {
+	return k.writer.WriteMessages(ctx,
+		kafka.Message{
+			Key:   key,
+			Value: payload,
+		},
+	)
+}

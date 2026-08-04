@@ -1,7 +1,9 @@
 package server
 
 import (
+	"context"
 	"log"
+	"time"
 
 	"github.com/MonuChaudhary14/Archon/internal/ai"
 	"github.com/MonuChaudhary14/Archon/internal/auth"
@@ -55,11 +57,14 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	auth.Setup(db, redisClient, authGroup)
 
 	aiGroup := router.Group("/")
-	ai.Setup(aiGroup)
+	kafkaSvc := ai.Setup(aiGroup)
 
 	interviewRepo := interview.NewRepository(db)
 	interviewService := interview.NewService(interviewRepo)
 	interviewHandler := interview.NewHandler(interviewService)
+
+	outboxWorker := interview.NewOutboxWorker(db, kafkaSvc, 2*time.Second)
+	go outboxWorker.Start(context.Background())
 
 	router.POST("/api/v1/interviews/start", interviewHandler.StartInterview)
 

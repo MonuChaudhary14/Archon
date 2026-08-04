@@ -14,7 +14,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func Setup(router *gin.RouterGroup){
+func Setup(router *gin.RouterGroup) *KafkaService {
 	hub:= NewHub()
 	kafkaSvc := NewKafkaService(hub)
 
@@ -52,6 +52,6 @@ func Setup(router *gin.RouterGroup){
 		}
 	})
 
+	return kafkaSvc
 }
-
 
