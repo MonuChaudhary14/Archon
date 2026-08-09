@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"log"
+	"os"
 	"time"
 
 	"github.com/MonuChaudhary14/Archon/internal/ai"
@@ -54,10 +55,10 @@ func NewServer(cfg *config.Config) (*Server, error) {
 
 	// Setup modular routing
 	authGroup := router.Group("/")
-	auth.Setup(db, redisClient, authGroup)
+	userRepo, _ := auth.Setup(db, redisClient, authGroup)
 
 	aiGroup := router.Group("/")
-	kafkaSvc := ai.Setup(aiGroup)
+	kafkaSvc := ai.Setup(aiGroup, redisClient)
 
 	interviewRepo := interview.NewRepository(db)
 	interviewService := interview.NewService(interviewRepo)
@@ -66,7 +67,10 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	outboxWorker := interview.NewOutboxWorker(db, kafkaSvc, 2*time.Second)
 	go outboxWorker.Start(context.Background())
 
-	router.POST("/api/v1/interviews/start", interviewHandler.StartInterview)
+	jwtSecret := os.Getenv("JWT_SECRET")
+	interviewGroup := router.Group("/api/v1/interviews")
+	interviewGroup.Use(auth.AuthMiddleware(jwtSecret, userRepo))
+	interviewGroup.POST("/start", interviewHandler.StartInterview)
 
 	// Swagger setup
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

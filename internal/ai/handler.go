@@ -1,11 +1,14 @@
 package ai
 
 import (
+	"context"
+	"encoding/json"
 	"log"
 	"net/http"
-	
+
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/redis/go-redis/v9"
 )
 
 var upgrader = websocket.Upgrader{
@@ -14,16 +17,16 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func Setup(router *gin.RouterGroup) *KafkaService {
-	hub:= NewHub()
+func Setup(router *gin.RouterGroup, redisClient *redis.Client) *KafkaService {
+	hub := NewHub()
 	kafkaSvc := NewKafkaService(hub)
 
 	go kafkaSvc.StartConsuming()
 
-	router.GET("/ai/chat", func(c*gin.Context){
+	router.GET("/ai/chat", func(c *gin.Context) {
 		sessionID := c.Query("session_id")
 
-		if sessionID == ""{
+		if sessionID == "" {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": "session_id required",
 			})
@@ -40,6 +43,22 @@ func Setup(router *gin.RouterGroup) *KafkaService {
 
 		hub.Register(sessionID, ws)
 		defer hub.Unregister(sessionID)
+
+		historyKeys, err := redisClient.LRange(context.Background(), "message_store:"+sessionID, 0, -1).Result()
+		if err == nil {
+			for _, msgStr := range historyKeys {
+				var msgMap map[string]interface{}
+				if err := json.Unmarshal([]byte(msgStr), &msgMap); err == nil {
+					if msgType, ok := msgMap["type"].(string); ok && msgType == "ai" {
+						if data, ok := msgMap["data"].(map[string]interface{}); ok {
+							if content, ok := data["content"].(string); ok {
+								ws.WriteMessage(websocket.TextMessage, []byte(content))
+							}
+						}
+					}
+				}
+			}
+		}
 
 		for {
 			_, msg, err := ws.ReadMessage()

@@ -10,7 +10,7 @@ import (
 )
 
 // Setup initializes all repositories, services, workers, and registers routes for the auth module
-func Setup(db *pgxpool.Pool, redisClient *redis.Client, rg *gin.RouterGroup) {
+func Setup(db *pgxpool.Pool, redisClient *redis.Client, rg *gin.RouterGroup) (UserRepository, *Handler) {
 	userRepository := NewPostgresUserRepository(db)
 	otpStore := NewOTPStore(redisClient)
 	mailService := NewMailService(
@@ -55,4 +55,6 @@ func Setup(db *pgxpool.Pool, redisClient *redis.Client, rg *gin.RouterGroup) {
 	authHandler := NewHandler(authService, oauthProviders, frontendURL)
 
 	RegisterRoutes(rg, authHandler, os.Getenv("JWT_SECRET"), userRepository)
+
+	return userRepository, authHandler
 }

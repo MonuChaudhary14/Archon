@@ -1,4 +1,3 @@
-from _typeshed import importlib
 import json
 import asyncio
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
@@ -34,12 +33,19 @@ class KafkaConsumerService:
     async def process_message(self, msg):
         try:
             data = json.loads(msg.value.decode('utf-8'))
-            prompt = data.get("prompt")
-            session_id = data.get("session_id", "default")
-
-            print(f"Processing request for session: {session_id}")
-
-            response = await self.llm_service.generate_response(prompt, session_id)
+            
+            if "interview_id" in data and "question_id" in data:
+                session_id = data["interview_id"]
+                question_id = data["question_id"]
+                print(f"Processing INTERVIEW_STARTED event for session: {session_id}")
+                
+                response = await self.llm_service.generate_initial_greeting(question_id, session_id)
+            else:
+                prompt = data.get("prompt")
+                session_id = data.get("session_id", "default")
+                print(f"Processing request for session: {session_id}")
+                
+                response = await self.llm_service.generate_response(prompt, session_id)
 
             result_event = {
                 "session_id": session_id,

@@ -14,8 +14,18 @@ func NewHandler(service Service) *Handler {
 }
 
 func (h *Handler) StartInterview(c *gin.Context) {
+	userIDVal, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized: user ID not found in context"})
+		return
+	}
 
-	userID := 1 
+	userIDUint, ok := userIDVal.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error: invalid user ID format"})
+		return
+	}
+	userID := int(userIDUint)
 
 	var req CreateInterviewRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
