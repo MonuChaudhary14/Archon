@@ -27,3 +27,7 @@ func (s *service) StartInterview(ctx context.Context, userID int, req CreateInte
 
 	return question, interviewID, nil
 }
+
+func (s *service) GetInterviewByID(ctx context.Context, userID int, interviewID string) (*Interview, error) {
+	return s.repo.GetInterviewByID(ctx, userID, interviewID)
+}

@@ -1,0 +1,1 @@
+ALTER TABLE interviews ADD COLUMN IF NOT EXISTS feedback JSONB;

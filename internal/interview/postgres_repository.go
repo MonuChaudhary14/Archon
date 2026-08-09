@@ -91,3 +91,19 @@ func (r *postgresRepository) CreateInterview(ctx context.Context, userID int, qu
 
 	return interviewID, nil
 }
+
+func (r *postgresRepository) GetInterviewByID(ctx context.Context, userID int, interviewID string) (*Interview, error) {
+	query := `
+		SELECT id, user_id, question_id, score, feedback, started_at, ended_at 
+		FROM interviews 
+		WHERE id = $1 AND user_id = $2;
+	`
+	var i Interview
+	err := r.db.QueryRow(ctx, query, interviewID, userID).Scan(
+		&i.ID, &i.UserID, &i.QuestionID, &i.Score, &i.Feedback, &i.StartedAt, &i.EndedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch interview: %w", err)
+	}
+	return &i, nil
+}

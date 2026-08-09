@@ -1,6 +1,7 @@
 package interview
 
 import (
+	"encoding/json"
 	"time"
 )
 
@@ -15,13 +16,14 @@ type Question struct {
 	DeletedAt        *time.Time `json:"deleted_at,omitempty"`
 }
 type Interview struct {
-	ID         string     `json:"id"`
-	UserID     int        `json:"user_id"`
-	QuestionID string     `json:"question_id"`
-	Score      *int       `json:"score,omitempty"`
-	StartedAt  time.Time  `json:"started_at"`
-	EndedAt    *time.Time `json:"ended_at,omitempty"`
-	DeletedAt  *time.Time `json:"deleted_at,omitempty"`
+	ID         string           `json:"id"`
+	UserID     int              `json:"user_id"`
+	QuestionID string           `json:"question_id"`
+	Score      *int             `json:"score,omitempty"`
+	Feedback   *json.RawMessage `json:"feedback,omitempty"`
+	StartedAt  time.Time        `json:"started_at"`
+	EndedAt    *time.Time       `json:"ended_at,omitempty"`
+	DeletedAt  *time.Time       `json:"deleted_at,omitempty"`
 }
 type CreateInterviewRequest struct {
 	Difficulty string `json:"difficulty" binding:"required"`

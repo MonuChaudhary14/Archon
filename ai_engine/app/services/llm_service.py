@@ -6,6 +6,8 @@ from langchain_community.chat_message_histories.redis import RedisChatMessageHis
 import json
 import re
 import redis
+import asyncio
+from app.services.evaluation_service import EvaluationService
 
 class LLMService:
     def __init__(self):
@@ -29,6 +31,8 @@ class LLMService:
         self.redis_client = None
         if settings.REDIS_URL:
             self.redis_client = redis.from_url(settings.REDIS_URL)
+
+        self.eval_service = EvaluationService(self.llm, self.db)
 
     def get_message_history(self, session_id: str):
         return RedisChatMessageHistory(session_id, url=settings.REDIS_URL)
@@ -242,6 +246,9 @@ class LLMService:
                 if next_state != current_state:
                     print(f"State transition for {session_id}: {current_state} -> {next_state} (Reason: {parsed.get('transition_reason')})")
                     self.set_interview_state(session_id, next_state)
+                    
+                    if next_state == "COMPLETED":
+                        asyncio.create_task(self.eval_service.evaluate_session(session_id))
 
                 output = ai_response
 

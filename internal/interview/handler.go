@@ -44,3 +44,37 @@ func (h *Handler) StartInterview(c *gin.Context) {
 		"question":   question,
 	})
 }
+
+func (h *Handler) GetInterviewReport(c *gin.Context) {
+	userIDVal, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized: user ID not found in context"})
+		return
+	}
+
+	userIDUint, ok := userIDVal.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error: invalid user ID format"})
+		return
+	}
+	userID := int(userIDUint)
+
+	interviewID := c.Param("id")
+	if interviewID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "interview ID is required"})
+		return
+	}
+
+	interview, err := h.service.GetInterviewByID(c.Request.Context(), userID, interviewID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "interview not found or unauthorized"})
+		return
+	}
+
+	if interview.Score == nil {
+		c.JSON(http.StatusAccepted, gin.H{"status": "evaluation in progress"})
+		return
+	}
+
+	c.JSON(http.StatusOK, interview)
+}

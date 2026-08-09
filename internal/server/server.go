@@ -71,6 +71,7 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	interviewGroup := router.Group("/api/v1/interviews")
 	interviewGroup.Use(auth.AuthMiddleware(jwtSecret, userRepo))
 	interviewGroup.POST("/start", interviewHandler.StartInterview)
+	interviewGroup.GET("/:id/report", interviewHandler.GetInterviewReport)
 
 	// Swagger setup
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
