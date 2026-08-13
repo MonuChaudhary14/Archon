@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"strings"
+
 	"github.com/segmentio/kafka-go"
 )
 
@@ -20,10 +22,12 @@ type AIResponse struct{
 }
 
 func NewKafkaService(hub *Hub) *KafkaService{
-	brokers := []string{os.Getenv("KAFKA_BROKERS")}
-
-	if brokers[0] == ""{
+	brokersEnv := os.Getenv("KAFKA_BROKERS")
+	var brokers []string
+	if brokersEnv == "" {
 		brokers = []string{"localhost:9092"}
+	} else {
+		brokers = strings.Split(brokersEnv, ",")
 	}
 
 	writer := &kafka.Writer{
