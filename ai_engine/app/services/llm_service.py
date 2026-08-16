@@ -214,6 +214,11 @@ class LLMService:
                 f"Ensure the JSON output is well-formed. Do not wrap the JSON output in markdown formatting or code blocks."
             )
 
+            diagram_ctx = self.eval_service.get_diagram_context(session_id)
+            diagram_info = ""
+            if diagram_ctx and (diagram_ctx["nodes"] or diagram_ctx["edges"]):
+                diagram_info = f"\nCandidate's current whiteboard diagram:\nNodes: {json.dumps(diagram_ctx['nodes'])}\nEdges: {json.dumps(diagram_ctx['edges'])}"
+
             history = None
             if settings.REDIS_URL:
                 history = self.get_message_history(session_id)
@@ -224,6 +229,7 @@ class LLMService:
                 context = "\n".join(context_list)
                 full_prompt = (
                     f"{system_prompt}\n\n"
+                    f"{diagram_info}\n\n"
                     f"Previous Conversation:\n{context}\n\n"
                     f"Candidate's Message: {prompt}\n"
                     f"Please evaluate and respond in the required JSON format."
@@ -231,6 +237,7 @@ class LLMService:
             else:
                 full_prompt = (
                     f"{system_prompt}\n\n"
+                    f"{diagram_info}\n\n"
                     f"Candidate's Message: {prompt}\n"
                     f"Please evaluate and respond in the required JSON format."
                 )

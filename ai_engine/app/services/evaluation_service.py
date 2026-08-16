@@ -13,6 +13,23 @@ class EvaluationService:
     def get_message_history(self, session_id: str):
         return RedisChatMessageHistory(session_id, url=settings.REDIS_URL)
 
+    def get_diagram_context(self, session_id: str):
+        if not self.db:
+            return None
+        try:
+            from sqlalchemy import text
+            query_nodes = "SELECT id, type, label FROM diagram_nodes WHERE interview_id = :session_id"
+            query_edges = "SELECT id, source, target, type FROM diagram_edges WHERE interview_id = :session_id"
+            with self.db._engine.connect() as conn:
+                nodes_res = conn.execute(text(query_nodes), {"session_id": session_id})
+                edges_res = conn.execute(text(query_edges), {"session_id": session_id})
+                nodes = [{"id": r[0], "type": r[1], "label": r[2]} for r in nodes_res.fetchall()]
+                edges = [{"id": r[0], "source": r[1], "target": r[2], "type": r[3]} for r in edges_res.fetchall()]
+                return {"nodes": nodes, "edges": edges}
+        except Exception as e:
+            print(f"Error fetching diagram context in evaluation: {e}")
+        return None
+
     def _parse_json_response(self, content: str):
         content = content.strip()
         if content.startswith("```"):
@@ -72,6 +89,11 @@ class EvaluationService:
             transcript_list.append(f"{msg.type}: {msg.content}")
         transcript = "\n".join(transcript_list)
 
+        diagram_ctx = self.get_diagram_context(session_id)
+        diagram_info = ""
+        if diagram_ctx and (diagram_ctx["nodes"] or diagram_ctx["edges"]):
+            diagram_info = f"\n\nHere is the candidate's final system design whiteboard diagram:\nNodes:\n{json.dumps(diagram_ctx['nodes'], indent=2)}\nEdges:\n{json.dumps(diagram_ctx['edges'], indent=2)}"
+
         system_prompt = (
             f"You are a Senior System Design Interview Evaluator.\n"
             f"Your job is to objectively score and provide feedback for a candidate's system design interview.\n\n"
@@ -79,7 +101,7 @@ class EvaluationService:
             f"Difficulty: {difficulty}\n"
             f"Expected Topics: {expected_topics}\n\n"
             f"Here is the complete chat transcript of the interview:\n"
-            f"\"\"\"\n{transcript}\n\"\"\"\n\n"
+            f"\"\"\"\n{transcript}\n\"\"\"{diagram_info}\n\n"
             f"Please evaluate the candidate across 4 standard system design core dimensions:\n"
             f"1. Requirements Gathering (clarifying goals, scope, scale, latency constraints)\n"
             f"2. Capacity Estimation (estimating traffic, storage, memory, bandwidth)\n"

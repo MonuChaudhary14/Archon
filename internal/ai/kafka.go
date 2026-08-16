@@ -3,6 +3,7 @@ package ai
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -11,9 +12,10 @@ import (
 )
 
 type KafkaService struct{
-	writer *kafka.Writer
-	reader *kafka.Reader
-	hub *Hub
+	writer        *kafka.Writer
+	diagramWriter *kafka.Writer
+	reader        *kafka.Reader
+	hub           *Hub
 }
 
 type AIResponse struct{
@@ -36,6 +38,12 @@ func NewKafkaService(hub *Hub) *KafkaService{
 		Balancer : &kafka.LeastBytes{},
 	}
 
+	diagramWriter := &kafka.Writer{
+		Addr: kafka.TCP(brokers...),
+		Topic : "diagram.events",
+		Balancer : &kafka.LeastBytes{},
+	}
+
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers: brokers,
 		Topic: "ai.responses",
@@ -43,6 +51,7 @@ func NewKafkaService(hub *Hub) *KafkaService{
 
 	return &KafkaService{
 		writer: writer,
+		diagramWriter: diagramWriter,
 		reader: reader,
 		hub : hub,
 	}
@@ -83,6 +92,24 @@ func (k *KafkaService) PublishEvent(ctx context.Context, key []byte, payload []b
 		kafka.Message{
 			Key:   key,
 			Value: payload,
+		},
+	)
+}
+
+func (k *KafkaService) PublishDiagramEvent(sessionID, eventType string, data json.RawMessage) error {
+	payload := map[string]interface{}{
+		"session_id": sessionID,
+		"event_type": eventType,
+		"data":       data,
+	}
+	bytes, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal diagram event payload: %w", err)
+	}
+	return k.diagramWriter.WriteMessages(context.Background(),
+		kafka.Message{
+			Key:   []byte(sessionID),
+			Value: bytes,
 		},
 	)
 }

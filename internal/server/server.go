@@ -10,6 +10,7 @@ import (
 	"github.com/MonuChaudhary14/Archon/internal/auth"
 	"github.com/MonuChaudhary14/Archon/internal/cache"
 	"github.com/MonuChaudhary14/Archon/internal/database"
+	"github.com/MonuChaudhary14/Archon/internal/diagram"
 	"github.com/MonuChaudhary14/Archon/internal/interview"
 	"github.com/MonuChaudhary14/Archon/pkg/config"
 	"github.com/MonuChaudhary14/Archon/pkg/middleware"
@@ -57,8 +58,10 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	authGroup := router.Group("/")
 	userRepo, _ := auth.Setup(db, redisClient, authGroup)
 
+	diagRepo := diagram.NewRepository(db)
+
 	aiGroup := router.Group("/")
-	kafkaSvc := ai.Setup(aiGroup, redisClient)
+	kafkaSvc := ai.Setup(aiGroup, redisClient, diagRepo)
 
 	interviewRepo := interview.NewRepository(db)
 	interviewService := interview.NewService(interviewRepo)
