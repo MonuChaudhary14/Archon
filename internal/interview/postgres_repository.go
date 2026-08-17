@@ -26,19 +26,19 @@ func (r *postgresRepository) GetRandomUnansweredQuestion(ctx context.Context, us
 		)
 		ORDER BY RANDOM() LIMIT 1;
 	`
-	
+
 	var q Question
 	err := r.db.QueryRow(ctx, query, difficulty, userID).Scan(
 		&q.ID, &q.Title, &q.Difficulty, &q.ExpectedTopics, &q.TimeLimitMinutes, &q.CreatedAt,
 	)
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch question: %w", err)
 	}
 	return &q, nil
 }
 
-func (r *postgresRepository) CreateInterview(ctx context.Context, userID int, questionID string) (string, error){
+func (r *postgresRepository) CreateInterview(ctx context.Context, userID int, questionID string) (string, error) {
 
 	tx, err := r.db.Begin(ctx)
 
@@ -58,14 +58,14 @@ func (r *postgresRepository) CreateInterview(ctx context.Context, userID int, qu
 
 	err = tx.QueryRow(ctx, insertInterviewQuery, userID, questionID).Scan(&interviewID)
 
-	if err != nil{
+	if err != nil {
 		return "", fmt.Errorf("Failed to create interview: %w", err)
 	}
 
-	payloadMap := map[string] interface{}{
-		"interview_id" : interviewID,
-		"user_id": userID,
-		"question_id": questionID,
+	payloadMap := map[string]interface{}{
+		"interview_id": interviewID,
+		"user_id":      userID,
+		"question_id":  questionID,
 	}
 
 	payloadBytes, err := json.Marshal(payloadMap)
@@ -79,13 +79,13 @@ func (r *postgresRepository) CreateInterview(ctx context.Context, userID int, qu
 		VALUES ('Interview', $1, 'INTERVIEW_STARTED', $2)
 	`
 
-	_, err = tx.Exec(ctx, insertOutboxQuery, interviewID,payloadBytes)
+	_, err = tx.Exec(ctx, insertOutboxQuery, interviewID, payloadBytes)
 
 	if err != nil {
 		return "", fmt.Errorf("failed to insert outbox event: %w", err)
 	}
 
-	if err = tx.Commit(ctx); err != nil{
+	if err = tx.Commit(ctx); err != nil {
 		return "", fmt.Errorf("Failed to commit transaction: %w", err)
 	}
 

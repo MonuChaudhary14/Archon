@@ -8,33 +8,33 @@ import (
 	"github.com/hibiken/asynq"
 )
 
-const(
+const (
 	TypeEmailDelivery = "email:deliver"
 )
 
-type EmailQueue struct{
+type EmailQueue struct {
 	client *asynq.Client
 }
 
-func NewEmailQueue(redisOpt asynq.RedisClientOpt) *EmailQueue{
+func NewEmailQueue(redisOpt asynq.RedisClientOpt) *EmailQueue {
 
 	return &EmailQueue{
 		client: asynq.NewClient(redisOpt),
 	}
 }
 
-func (q *EmailQueue) Enqueue(ctx context.Context, job EmailJob) error{
+func (q *EmailQueue) Enqueue(ctx context.Context, job EmailJob) error {
 	payload, err := json.Marshal(job)
 
-	if err != nil{
+	if err != nil {
 		return fmt.Errorf("Failed to marshal email job: %w", err)
 	}
 
 	task := asynq.NewTask(TypeEmailDelivery, payload)
-	
+
 	info, err := q.client.EnqueueContext(ctx, task, asynq.MaxRetry(3))
 
-	if err != nil{
+	if err != nil {
 		return fmt.Errorf("Could not enqueue email task: %w", err)
 	}
 

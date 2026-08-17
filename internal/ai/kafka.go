@@ -11,19 +11,19 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
-type KafkaService struct{
+type KafkaService struct {
 	writer        *kafka.Writer
 	diagramWriter *kafka.Writer
 	reader        *kafka.Reader
 	hub           *Hub
 }
 
-type AIResponse struct{
+type AIResponse struct {
 	SessionID string `json:"session_id"`
-	Response string `json:"response"`
+	Response  string `json:"response"`
 }
 
-func NewKafkaService(hub *Hub) *KafkaService{
+func NewKafkaService(hub *Hub) *KafkaService {
 	brokersEnv := os.Getenv("KAFKA_BROKERS")
 	var brokers []string
 	if brokersEnv == "" {
@@ -33,27 +33,27 @@ func NewKafkaService(hub *Hub) *KafkaService{
 	}
 
 	writer := &kafka.Writer{
-		Addr: kafka.TCP(brokers...),
-		Topic : "ai.requests",
-		Balancer : &kafka.LeastBytes{},
+		Addr:     kafka.TCP(brokers...),
+		Topic:    "ai.requests",
+		Balancer: &kafka.LeastBytes{},
 	}
 
 	diagramWriter := &kafka.Writer{
-		Addr: kafka.TCP(brokers...),
-		Topic : "diagram.events",
-		Balancer : &kafka.LeastBytes{},
+		Addr:     kafka.TCP(brokers...),
+		Topic:    "diagram.events",
+		Balancer: &kafka.LeastBytes{},
 	}
 
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers: brokers,
-		Topic: "ai.responses",
+		Topic:   "ai.responses",
 	})
 
 	return &KafkaService{
-		writer: writer,
+		writer:        writer,
 		diagramWriter: diagramWriter,
-		reader: reader,
-		hub : hub,
+		reader:        reader,
+		hub:           hub,
 	}
 
 }
@@ -72,16 +72,16 @@ func (k *KafkaService) PublishPrompt(sessionID, prompt string) error {
 	)
 }
 
-func (k * KafkaService) StartConsuming(){
-	for{
+func (k *KafkaService) StartConsuming() {
+	for {
 		msg, err := k.reader.ReadMessage(context.Background())
-		if err != nil{
+		if err != nil {
 			log.Printf("Kafka read error: %v\n", err)
 			continue
 		}
 
 		var resp AIResponse
-		if err := json.Unmarshal(msg.Value, &resp); err == nil{
+		if err := json.Unmarshal(msg.Value, &resp); err == nil {
 			k.hub.SendMessage(resp.SessionID, []byte(resp.Response))
 		}
 	}

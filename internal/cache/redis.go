@@ -2,8 +2,8 @@ package cache
 
 import (
 	"context"
-	"os"
 	"github.com/redis/go-redis/v9"
+	"os"
 )
 
 func NewRedisClient() *redis.Client {

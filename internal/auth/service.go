@@ -81,5 +81,3 @@ func NewAuthService(
 		jwtSecret:      jwtSecret,
 	}
 }
-
-

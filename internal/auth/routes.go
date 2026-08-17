@@ -5,7 +5,7 @@ import (
 )
 
 func RegisterRoutes(rg *gin.RouterGroup, handler *Handler, jwtSecret string, repo UserRepository) {
-	
+
 	limiter := NewIPRateLimiter(5, 10)
 	rg.Use(RateLimiterMiddleware(limiter))
 

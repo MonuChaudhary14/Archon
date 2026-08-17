@@ -34,8 +34,8 @@ func MetricsMiddleware() gin.HandlerFunc {
 
 		HTTPRequestDuration.WithLabelValues(
 			c.Request.Method,
-			c.FullPath(), 
-			status,       
+			c.FullPath(),
+			status,
 		).Observe(duration)
 	}
 }

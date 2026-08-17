@@ -308,4 +308,3 @@ func (r *postgresUserRepository) FindOAuthConnection(ctx context.Context, provid
 	}
 	return &conn, nil
 }
-

@@ -1,7 +1,5 @@
 package auth
 
-
-
 type Handler struct {
 	authService    AuthService
 	oauthProviders map[string]OAuthProvider
@@ -19,5 +17,3 @@ func NewHandler(
 		frontendURL:    frontendURL,
 	}
 }
-
-
