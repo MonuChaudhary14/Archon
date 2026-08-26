@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = ""
     REDIS_URL: str = ""
     KAFKA_BROKERS: str = ""
+    QDRANT_URL: str = ""
     model_config = SettingsConfigDict(
         env_file=".env", 
         env_file_encoding="utf-8", 

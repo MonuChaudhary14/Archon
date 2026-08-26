@@ -1,13 +1,13 @@
 from langchain_groq import ChatGroq
 from app.core.config import settings
 from langchain_community.utilities.sql_database import SQLDatabase
-from langchain_community.agent_toolkits.sql.base import create_sql_agent
 from langchain_community.chat_message_histories.redis import RedisChatMessageHistory
 import json
 import re
 import redis
 import asyncio
 from app.services.evaluation_service import EvaluationService
+from app.services.knowledge_service import KnowledgeService
 
 class LLMService:
     def __init__(self):
@@ -21,18 +21,13 @@ class LLMService:
 
         if settings.DATABASE_URL:
             self.db = SQLDatabase.from_uri(settings.DATABASE_URL)
-            self.agent_executor = create_sql_agent(
-                llm=self.llm,
-                db=self.db,
-                agent_type="tool-calling",
-                verbose=True
-            )
 
         self.redis_client = None
         if settings.REDIS_URL:
             self.redis_client = redis.from_url(settings.REDIS_URL)
 
         self.eval_service = EvaluationService(self.llm, self.db)
+        self.knowledge_service = KnowledgeService()
 
     def get_message_history(self, session_id: str):
         return RedisChatMessageHistory(session_id, url=settings.REDIS_URL)
@@ -165,6 +160,12 @@ class LLMService:
 
             current_state = self.get_interview_state(session_id)
 
+            retrieved_concepts = self.knowledge_service.retrieve_relevant_concepts(prompt, limit=2)
+            concepts_context = ""
+            if retrieved_concepts:
+                concepts_context = "\n- ".join(retrieved_concepts)
+                concepts_context = f"\nRelevant System Design Reference Material:\n- {concepts_context}\n"
+
             stages_guidelines = {
                 "REQUIREMENTS": (
                     "Stage: Requirements Gathering.\n"
@@ -199,6 +200,7 @@ class LLMService:
                 f"You are a professional system design interviewer. "
                 f"You are conducting a system design interview with a candidate for the topic: '{title}' (Difficulty: {difficulty}). "
                 f"Expected Topics/Concepts to cover: {expected_topics}.\n\n"
+                f"{concepts_context}\n"
                 f"Current Interview State: {current_state}\n"
                 f"{current_stage_info}\n\n"
                 f"Guidelines:\n"

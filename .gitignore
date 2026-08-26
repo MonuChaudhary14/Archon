@@ -61,3 +61,8 @@ config.dev.json
 
 # Agent rules
 .agents/
+
+# Python
+__pycache__/
+*.py[cod]
+*.class
