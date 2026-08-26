@@ -27,7 +27,7 @@ func (q *EmailQueue) Enqueue(ctx context.Context, job EmailJob) error {
 	payload, err := json.Marshal(job)
 
 	if err != nil {
-		return fmt.Errorf("Failed to marshal email job: %w", err)
+		return fmt.Errorf("failed to marshal email job: %w", err)
 	}
 
 	task := asynq.NewTask(TypeEmailDelivery, payload)
@@ -35,7 +35,7 @@ func (q *EmailQueue) Enqueue(ctx context.Context, job EmailJob) error {
 	info, err := q.client.EnqueueContext(ctx, task, asynq.MaxRetry(3))
 
 	if err != nil {
-		return fmt.Errorf("Could not enqueue email task: %w", err)
+		return fmt.Errorf("could not enqueue email task: %w", err)
 	}
 
 	fmt.Printf("Enqueued task: id = %s queue = %s\n", info.ID, info.Queue)

@@ -159,7 +159,8 @@ func (s *authService) ResendOTP(
 		return ErrPleaseWait
 	}
 
-	if req.Intent == "register" {
+	switch req.Intent {
+	case "register":
 		unverifiedUser, err := s.otpStore.GetUnverifiedUser(ctx, req.Email)
 		if err != nil {
 			return ErrSessionExpired
@@ -186,7 +187,7 @@ func (s *authService) ResendOTP(
 			Email: req.Email,
 			OTP:   otp,
 		})
-	} else if req.Intent == "forgot_password" {
+	case "forgot_password":
 		user, err := s.userRepository.FindByEmail(ctx, req.Email)
 		if err != nil {
 			return nil // Silently ignore if user not found for security

@@ -47,7 +47,9 @@ func (w *OutboxWorker) processPendingEvents(ctx context.Context) {
 		log.Printf("Outbox worker failed to start transaction: %v", err)
 		return
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	query := `
 		SELECT id, aggregate_id, payload, retries 

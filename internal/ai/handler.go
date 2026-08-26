@@ -45,7 +45,9 @@ func Setup(router *gin.RouterGroup, redisClient *redis.Client, diagRepo diagram.
 			log.Println("WebSocket upgrade failed:", err)
 			return
 		}
-		defer ws.Close()
+		defer func() {
+			_ = ws.Close()
+		}()
 
 		hub.Register(sessionID, ws)
 		defer hub.Unregister(sessionID)
@@ -58,7 +60,7 @@ func Setup(router *gin.RouterGroup, redisClient *redis.Client, diagRepo diagram.
 					if msgType, ok := msgMap["type"].(string); ok && msgType == "ai" {
 						if data, ok := msgMap["data"].(map[string]interface{}); ok {
 							if content, ok := data["content"].(string); ok {
-								ws.WriteMessage(websocket.TextMessage, []byte(content))
+								_ = ws.WriteMessage(websocket.TextMessage, []byte(content))
 							}
 						}
 					}
@@ -75,7 +77,7 @@ func Setup(router *gin.RouterGroup, redisClient *redis.Client, diagRepo diagram.
 			var wsMsg WSMessage
 			if err := json.Unmarshal(msg, &wsMsg); err != nil {
 				if err := kafkaSvc.PublishPrompt(sessionID, string(msg)); err != nil {
-					ws.WriteMessage(websocket.TextMessage, []byte("Error sending message to processing queue"))
+					_ = ws.WriteMessage(websocket.TextMessage, []byte("Error sending message to processing queue"))
 				}
 				continue
 			}
@@ -96,7 +98,7 @@ func Setup(router *gin.RouterGroup, redisClient *redis.Client, diagRepo diagram.
 					}
 				}
 				if err := kafkaSvc.PublishPrompt(sessionID, prompt); err != nil {
-					ws.WriteMessage(websocket.TextMessage, []byte("Error sending message to processing queue"))
+					_ = ws.WriteMessage(websocket.TextMessage, []byte("Error sending message to processing queue"))
 				}
 			case "node_added", "node_updated":
 				var node diagram.Node
@@ -104,9 +106,11 @@ func Setup(router *gin.RouterGroup, redisClient *redis.Client, diagRepo diagram.
 					node.InterviewID = sessionID
 					if err := diagRepo.SaveNode(context.Background(), node); err != nil {
 						log.Printf("Failed to save node: %v", err)
-						ws.WriteMessage(websocket.TextMessage, []byte("Error saving diagram node"))
+						_ = ws.WriteMessage(websocket.TextMessage, []byte("Error saving diagram node"))
 					} else {
-						kafkaSvc.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data)
+						if err := kafkaSvc.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data); err != nil {
+							log.Printf("Failed to publish diagram event: %v", err)
+						}
 					}
 				} else {
 					log.Printf("Failed to unmarshal node: %v", err)
@@ -118,9 +122,11 @@ func Setup(router *gin.RouterGroup, redisClient *redis.Client, diagRepo diagram.
 				if err := json.Unmarshal(wsMsg.Data, &payload); err == nil {
 					if err := diagRepo.DeleteNode(context.Background(), sessionID, payload.ID); err != nil {
 						log.Printf("Failed to delete node: %v", err)
-						ws.WriteMessage(websocket.TextMessage, []byte("Error deleting diagram node"))
+						_ = ws.WriteMessage(websocket.TextMessage, []byte("Error deleting diagram node"))
 					} else {
-						kafkaSvc.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data)
+						if err := kafkaSvc.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data); err != nil {
+							log.Printf("Failed to publish diagram event: %v", err)
+						}
 					}
 				}
 			case "edge_added", "edge_updated":
@@ -129,9 +135,11 @@ func Setup(router *gin.RouterGroup, redisClient *redis.Client, diagRepo diagram.
 					edge.InterviewID = sessionID
 					if err := diagRepo.SaveEdge(context.Background(), edge); err != nil {
 						log.Printf("Failed to save edge: %v", err)
-						ws.WriteMessage(websocket.TextMessage, []byte("Error saving diagram edge"))
+						_ = ws.WriteMessage(websocket.TextMessage, []byte("Error saving diagram edge"))
 					} else {
-						kafkaSvc.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data)
+						if err := kafkaSvc.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data); err != nil {
+							log.Printf("Failed to publish diagram event: %v", err)
+						}
 					}
 				}
 			case "edge_deleted":
@@ -141,9 +149,11 @@ func Setup(router *gin.RouterGroup, redisClient *redis.Client, diagRepo diagram.
 				if err := json.Unmarshal(wsMsg.Data, &payload); err == nil {
 					if err := diagRepo.DeleteEdge(context.Background(), sessionID, payload.ID); err != nil {
 						log.Printf("Failed to delete edge: %v", err)
-						ws.WriteMessage(websocket.TextMessage, []byte("Error deleting diagram edge"))
+						_ = ws.WriteMessage(websocket.TextMessage, []byte("Error deleting diagram edge"))
 					} else {
-						kafkaSvc.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data)
+						if err := kafkaSvc.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data); err != nil {
+							log.Printf("Failed to publish diagram event: %v", err)
+						}
 					}
 				}
 			default:

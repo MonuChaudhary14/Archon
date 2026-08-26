@@ -1,0 +1,37 @@
+version: "2"
+
+run:
+  timeout: 5m
+  issues-exit-code: 1
+  tests: true
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - revive
+    - goconst
+    - gosec
+    - ineffassign
+  settings:
+    revive:
+      rules:
+        - name: exported
+          disabled: true
+        - name: package-comments
+          disabled: true
+        - name: blank-imports
+          severity: warning
+        - name: error-naming
+          severity: warning
+        - name: error-strings
+          severity: warning
+issues:
+  exclude-rules:
+    - text: 'string `error` has'
+      linters:
+        - goconst
+  max-issues-per-linter: 0
+  max-same-issues: 0

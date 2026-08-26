@@ -33,8 +33,8 @@ func (h *Hub) SendMessage(sessionId string, message []byte) bool {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	if conn, exists := h.connections[sessionId]; exists {
-		conn.WriteMessage(websocket.TextMessage, message)
-		return true
+		err := conn.WriteMessage(websocket.TextMessage, message)
+		return err == nil
 	}
 	return false
 }

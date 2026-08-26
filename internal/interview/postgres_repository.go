@@ -43,10 +43,12 @@ func (r *postgresRepository) CreateInterview(ctx context.Context, userID int, qu
 	tx, err := r.db.Begin(ctx)
 
 	if err != nil {
-		return "", fmt.Errorf("Failed to begin trasaction: %w", err)
+		return "", fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	insertInterviewQuery := `
 		INSERT INTO interviews (user_id, question_id) 
@@ -59,7 +61,7 @@ func (r *postgresRepository) CreateInterview(ctx context.Context, userID int, qu
 	err = tx.QueryRow(ctx, insertInterviewQuery, userID, questionID).Scan(&interviewID)
 
 	if err != nil {
-		return "", fmt.Errorf("Failed to create interview: %w", err)
+		return "", fmt.Errorf("failed to create interview: %w", err)
 	}
 
 	payloadMap := map[string]interface{}{
@@ -71,7 +73,7 @@ func (r *postgresRepository) CreateInterview(ctx context.Context, userID int, qu
 	payloadBytes, err := json.Marshal(payloadMap)
 
 	if err != nil {
-		return "", fmt.Errorf("Failed to marshal outbook payload: %w", err)
+		return "", fmt.Errorf("failed to marshal outbox payload: %w", err)
 	}
 
 	insertOutboxQuery := `
@@ -86,7 +88,7 @@ func (r *postgresRepository) CreateInterview(ctx context.Context, userID int, qu
 	}
 
 	if err = tx.Commit(ctx); err != nil {
-		return "", fmt.Errorf("Failed to commit transaction: %w", err)
+		return "", fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return interviewID, nil

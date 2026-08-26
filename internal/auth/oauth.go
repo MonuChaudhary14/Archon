@@ -50,7 +50,9 @@ func (g *GoogleOAuth) GetUserInfo(ctx context.Context, token *oauth2.Token) (*OA
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	var data struct {
 		ID    string `json:"id"`
@@ -94,7 +96,9 @@ func (g *GithubOAuth) GetUserInfo(ctx context.Context, token *oauth2.Token) (*OA
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	var data struct {
 		ID    int    `json:"id"`
@@ -110,7 +114,9 @@ func (g *GithubOAuth) GetUserInfo(ctx context.Context, token *oauth2.Token) (*OA
 	if email == "" {
 		emailResp, err := client.Get("https://api.github.com/user/emails")
 		if err == nil {
-			defer emailResp.Body.Close()
+			defer func() {
+				_ = emailResp.Body.Close()
+			}()
 			var emails []struct {
 				Email   string `json:"email"`
 				Primary bool   `json:"primary"`

@@ -31,7 +31,9 @@ func (r *postgresUserRepository) RunInTx(ctx context.Context, fn func(txRepo Use
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	txRepo := &postgresUserRepository{
 		pool: r.pool,
