@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -7,8 +7,14 @@ ENV PYTHONUNBUFFERED=1 \
     POETRY_VIRTUALENVS_IN_PROJECT=true \
     POETRY_NO_INTERACTION=1
 
-RUN apt-get update && apt-get install -y curl && \
-    curl -sSL https://install.python-poetry.org | python3 -
+RUN apt-get clean && \
+    apt-get update -o Acquire::BrokenProxy="true" \
+                   -o Acquire::http::No-Cache="true" \
+                   -o Acquire::Keep-Session-Broken="true" \
+                   -y && \
+    apt-get install -y --no-install-recommends curl && \
+    curl -sSL https://install.python-poetry.org | python3 - && \
+    rm -rf /var/lib/apt/lists/*
 ENV PATH="$POETRY_HOME/bin:$PATH"
 
 WORKDIR /app

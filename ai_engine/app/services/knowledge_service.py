@@ -1,7 +1,6 @@
 import os
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
-from sentence_transformers import SentenceTransformer
 from app.core.config import settings
 
 class KnowledgeService:
@@ -11,7 +10,6 @@ class KnowledgeService:
             qdrant_url = "http://localhost:6333"
         
         self.client = QdrantClient(url=qdrant_url)
-        self.model = SentenceTransformer('all-MiniLM-L6-v2')
         self.collection_name = "system_design_concepts"
 
     def seed_knowledge_base(self):
@@ -61,7 +59,7 @@ class KnowledgeService:
                 
                 points = []
                 for item in concepts:
-                    vector = self.model.encode(item["content"]).tolist()
+                    vector = self._get_embedding(item["content"])
                     points.append(
                         PointStruct(
                             id=item["id"],
@@ -80,9 +78,56 @@ class KnowledgeService:
         except Exception as e:
             print(f"Error seeding Qdrant: {e}")
 
+    def _get_embedding(self, text: str) -> list:
+        token = settings.HUGGINGFACEHUB_API_TOKEN
+        if not token:
+            print("Warning: HUGGINGFACEHUB_API_TOKEN is not set.")
+            return [0.0] * 384
+            
+        model_id = "sentence-transformers/all-MiniLM-L6-v2"
+        url = f"https://api-inference.huggingface.co/models/{model_id}"
+        
+        import urllib.request
+        import json
+        import time
+        
+        req = urllib.request.Request(
+            url,
+            data=json.dumps({"inputs": text}).encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
+            },
+            method="POST"
+        )
+        
+        for attempt in range(5):
+            try:
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    res = json.loads(response.read().decode("utf-8"))
+                    
+                    if isinstance(res, dict) and "error" in res:
+                        estimated_time = int(res.get("estimated_time", 20))
+                        print(f"Model is loading, waiting {estimated_time} seconds...")
+                        time.sleep(estimated_time)
+                        continue
+                        
+                    if isinstance(res, list):
+                        val = res
+                        while isinstance(val, list) and len(val) > 0 and isinstance(val[0], list):
+                            val = val[0]
+                        return val
+                    return res
+            except Exception as e:
+                print(f"HF embedding error (attempt {attempt + 1}/5): {e}")
+                time.sleep(5)
+                
+        print("Failed to retrieve embedding after retries.")
+        return [0.0] * 384
+
     def retrieve_relevant_concepts(self, query: str, limit: int = 2) -> list:
         try:
-            query_vector = self.model.encode(query).tolist()
+            query_vector = self._get_embedding(query)
             
             results = self.client.search(
                 collection_name=self.collection_name,
