@@ -19,7 +19,7 @@ redis = "^5.0.3"
 psycopg2-binary = "^2.9.9"
 SQLAlchemy = "^2.0.29"
 aiokafka = "^0.10.0"
-qdrant-client = "^1.9.0"
+qdrant-client = "1.9.0"
 
 [build-system]
 requires = ["poetry-core"]

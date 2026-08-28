@@ -12,9 +12,12 @@ services:
       - REDIS_ADDR=${REDIS_ADDR}
       - KAFKA_BROKERS=${KAFKA_BROKERS}
     depends_on:
-      - db
-      - redis
-      - kafka
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      kafka:
+        condition: service_started
     restart: unless-stopped
 
   db:
@@ -30,6 +33,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${DB_USER} -d $${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
@@ -77,8 +85,12 @@ services:
       - QDRANT_URL=http://qdrant:6333
     restart: unless-stopped
     depends_on:
-      - kafka
-      - qdrant
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      qdrant:
+        condition: service_started
     dns:
       - 8.8.8.8
       - 1.1.1.1
