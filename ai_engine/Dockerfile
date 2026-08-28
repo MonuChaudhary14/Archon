@@ -7,7 +7,9 @@ ENV PYTHONUNBUFFERED=1 \
     POETRY_VIRTUALENVS_IN_PROJECT=true \
     POETRY_NO_INTERACTION=1
 
-RUN apt-get clean && \
+RUN sed -i 's/http:\/\/deb.debian.org/https:\/\/deb.debian.org/g' /etc/apt/sources.list || true && \
+    if [ -f /etc/apt/sources.list.d/debian.sources ]; then sed -i 's/http:\/\/deb.debian.org/https:\/\/deb.debian.org/g' /etc/apt/sources.list.d/debian.sources; fi && \
+    apt-get clean && \
     apt-get update -o Acquire::BrokenProxy="true" \
                    -o Acquire::http::No-Cache="true" \
                    -o Acquire::Keep-Session-Broken="true" \
