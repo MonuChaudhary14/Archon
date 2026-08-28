@@ -28,3 +28,8 @@ type Interview struct {
 type CreateInterviewRequest struct {
 	Difficulty string `json:"difficulty" binding:"required"`
 }
+
+type StartInterviewResponse struct {
+	SessionID string    `json:"session_id"`
+	Question  *Question `json:"question"`
+}

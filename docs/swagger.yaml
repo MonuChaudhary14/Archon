@@ -1,13 +1,23 @@
 basePath: /
 definitions:
-  auth.ForgotPasswordRequest:
+  github_com_MonuChaudhary14_Archon_pkg_response.APIResponse:
+    properties:
+      data: {}
+      error:
+        type: string
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  internal_auth.ForgotPasswordRequest:
     properties:
       email:
         type: string
     required:
     - email
     type: object
-  auth.LoginRequest:
+  internal_auth.LoginRequest:
     properties:
       email:
         type: string
@@ -17,28 +27,28 @@ definitions:
     - email
     - password
     type: object
-  auth.LoginResponse:
+  internal_auth.LoginResponse:
     properties:
       access_token:
         type: string
       refresh_token:
         type: string
     type: object
-  auth.LogoutRequest:
+  internal_auth.LogoutRequest:
     properties:
       refresh_token:
         type: string
     required:
     - refresh_token
     type: object
-  auth.RefreshRequest:
+  internal_auth.RefreshRequest:
     properties:
       refresh_token:
         type: string
     required:
     - refresh_token
     type: object
-  auth.RegisterRequest:
+  internal_auth.RegisterRequest:
     properties:
       email:
         type: string
@@ -55,7 +65,7 @@ definitions:
     - name
     - password
     type: object
-  auth.ResendOTPRequest:
+  internal_auth.ResendOTPRequest:
     properties:
       email:
         type: string
@@ -68,7 +78,7 @@ definitions:
     - email
     - intent
     type: object
-  auth.ResetPasswordRequest:
+  internal_auth.ResetPasswordRequest:
     properties:
       new_password:
         maxLength: 30
@@ -80,7 +90,7 @@ definitions:
     - new_password
     - reset_token
     type: object
-  auth.UserResponse:
+  internal_auth.UserResponse:
     properties:
       email:
         type: string
@@ -89,14 +99,14 @@ definitions:
       name:
         type: string
     type: object
-  auth.VerifyEmailRequest:
+  internal_auth.VerifyEmailRequest:
     properties:
       email:
         type: string
       otp:
         type: string
     type: object
-  auth.VerifyResetOTPRequest:
+  internal_auth.VerifyResetOTPRequest:
     properties:
       email:
         type: string
@@ -106,20 +116,66 @@ definitions:
     - email
     - otp
     type: object
-  auth.VerifyResetOTPResponse:
+  internal_auth.VerifyResetOTPResponse:
     properties:
       reset_token:
         type: string
     type: object
-  response.APIResponse:
+  internal_interview.CreateInterviewRequest:
     properties:
-      data: {}
-      error:
+      difficulty:
         type: string
-      message:
+    required:
+    - difficulty
+    type: object
+  internal_interview.Interview:
+    properties:
+      deleted_at:
         type: string
-      success:
-        type: boolean
+      ended_at:
+        type: string
+      feedback:
+        items:
+          type: integer
+        type: array
+      id:
+        type: string
+      question_id:
+        type: string
+      score:
+        type: integer
+      started_at:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  internal_interview.Question:
+    properties:
+      created_at:
+        type: string
+      deleted_at:
+        type: string
+      difficulty:
+        type: string
+      expected_topics:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      time_limit_minutes:
+        type: integer
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  internal_interview.StartInterviewResponse:
+    properties:
+      question:
+        $ref: '#/definitions/internal_interview.Question'
+      session_id:
+        type: string
     type: object
 host: localhost:8080
 info:
@@ -128,6 +184,109 @@ info:
   title: Sys API
   version: "1.0"
 paths:
+  /ai/chat:
+    get:
+      description: Establishes a bidirectional WebSocket connection to stream chat
+        messages and diagram events for a specific interview session.
+      parameters:
+      - description: Interview Session ID
+        in: query
+        name: session_id
+        required: true
+        type: string
+      responses: {}
+      summary: Connect to AI Chat WebSocket session
+      tags:
+      - ai
+  /api/v1/interviews/{id}/report:
+    get:
+      description: Retrieves the evaluation report, score, and feedback of an interview
+        session by ID.
+      parameters:
+      - description: Interview Session ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_interview.Interview'
+        "202":
+          description: '{"status": "evaluation in progress"}'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: '{"error": "..."}'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: '{"error": "..."}'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: '{"error": "..."}'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get the report of a completed interview
+      tags:
+      - interviews
+  /api/v1/interviews/start:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new system design interview session and returns the initial
+        question.
+      parameters:
+      - description: Interview Setup Details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_interview.CreateInterviewRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_interview.StartInterviewResponse'
+        "400":
+          description: '{"error": "..."}'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: '{"error": "..."}'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: '{"error": "..."}'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Start a new system design interview
+      tags:
+      - interviews
   /callback/{provider}:
     get:
       description: Handles the callback from the OAuth provider, exchanges the code
@@ -149,11 +308,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.APIResponse'
+            $ref: '#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/response.APIResponse'
+            $ref: '#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse'
       summary: OAuth Callback Handler
       tags:
       - auth
@@ -168,18 +327,18 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/auth.ForgotPasswordRequest'
+          $ref: '#/definitions/internal_auth.ForgotPasswordRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.APIResponse'
+            $ref: '#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.APIResponse'
+            $ref: '#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse'
       summary: Forgot password
       tags:
       - auth
@@ -194,7 +353,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/auth.LoginRequest'
+          $ref: '#/definitions/internal_auth.LoginRequest'
       produces:
       - application/json
       responses:
@@ -202,19 +361,19 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/response.APIResponse'
+            - $ref: '#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/auth.LoginResponse'
+                  $ref: '#/definitions/internal_auth.LoginResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.APIResponse'
+            $ref: '#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/response.APIResponse'
+            $ref: '#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse'
       summary: Login user
       tags:
       - auth
@@ -233,7 +392,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.APIResponse'
+            $ref: '#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse'
       summary: Initiate OAuth Login
       tags:
       - auth
@@ -247,22 +406,22 @@ paths:
         in: body
         name: request
         schema:
-          $ref: '#/definitions/auth.LogoutRequest'
+          $ref: '#/definitions/internal_auth.LogoutRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.APIResponse'
+            $ref: '#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.APIResponse'
+            $ref: '#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/response.APIResponse'
+            $ref: '#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse'
       security:
       - BearerAuth: []
       summary: Logout user
@@ -278,7 +437,7 @@ paths:
         in: body
         name: request
         schema:
-          $ref: '#/definitions/auth.RefreshRequest'
+          $ref: '#/definitions/internal_auth.RefreshRequest'
       produces:
       - application/json
       responses:
@@ -286,19 +445,19 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/response.APIResponse'
+            - $ref: '#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/auth.LoginResponse'
+                  $ref: '#/definitions/internal_auth.LoginResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.APIResponse'
+            $ref: '#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/response.APIResponse'
+            $ref: '#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse'
       summary: Refresh token
       tags:
       - auth
@@ -313,7 +472,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/auth.RegisterRequest'
+          $ref: '#/definitions/internal_auth.RegisterRequest'
       produces:
       - application/json
       responses:
@@ -321,15 +480,15 @@ paths:
           description: Created
           schema:
             allOf:
-            - $ref: '#/definitions/response.APIResponse'
+            - $ref: '#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/auth.UserResponse'
+                  $ref: '#/definitions/internal_auth.UserResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.APIResponse'
+            $ref: '#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse'
       summary: Register a new user
       tags:
       - auth
@@ -344,18 +503,18 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/auth.ResendOTPRequest'
+          $ref: '#/definitions/internal_auth.ResendOTPRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.APIResponse'
+            $ref: '#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.APIResponse'
+            $ref: '#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse'
       summary: Resend OTP
       tags:
       - auth
@@ -370,18 +529,18 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/auth.ResetPasswordRequest'
+          $ref: '#/definitions/internal_auth.ResetPasswordRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.APIResponse'
+            $ref: '#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.APIResponse'
+            $ref: '#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse'
       summary: Reset password
       tags:
       - auth
@@ -396,18 +555,18 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/auth.VerifyEmailRequest'
+          $ref: '#/definitions/internal_auth.VerifyEmailRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.APIResponse'
+            $ref: '#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.APIResponse'
+            $ref: '#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse'
       summary: Verify email with OTP
       tags:
       - auth
@@ -422,7 +581,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/auth.VerifyResetOTPRequest'
+          $ref: '#/definitions/internal_auth.VerifyResetOTPRequest'
       produces:
       - application/json
       responses:
@@ -430,15 +589,15 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/response.APIResponse'
+            - $ref: '#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/auth.VerifyResetOTPResponse'
+                  $ref: '#/definitions/internal_auth.VerifyResetOTPResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.APIResponse'
+            $ref: '#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse'
       summary: Verify reset password OTP
       tags:
       - auth

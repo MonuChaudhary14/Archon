@@ -29,7 +29,19 @@ func Setup(router *gin.RouterGroup, redisClient *redis.Client, diagRepo diagram.
 
 	go kafkaSvc.StartConsuming()
 
-	router.GET("/ai/chat", func(c *gin.Context) {
+	router.GET("/ai/chat", ChatHandler(hub, kafkaSvc, redisClient, diagRepo))
+
+	return kafkaSvc
+}
+
+// ChatHandler godoc
+// @Summary      Connect to AI Chat WebSocket session
+// @Description  Establishes a bidirectional WebSocket connection to stream chat messages and diagram events for a specific interview session.
+// @Tags         ai
+// @Param        session_id query string true "Interview Session ID"
+// @Router       /ai/chat [get]
+func ChatHandler(hub *Hub, kafkaSvc *KafkaService, redisClient *redis.Client, diagRepo diagram.Repository) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		sessionID := c.Query("session_id")
 
 		if sessionID == "" {
@@ -160,7 +172,5 @@ func Setup(router *gin.RouterGroup, redisClient *redis.Client, diagRepo diagram.
 				log.Printf("Unknown WebSocket message type: %s", wsMsg.Type)
 			}
 		}
-	})
-
-	return kafkaSvc
+	}
 }

@@ -15,6 +15,161 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/ai/chat": {
+            "get": {
+                "description": "Establishes a bidirectional WebSocket connection to stream chat messages and diagram events for a specific interview session.",
+                "tags": [
+                    "ai"
+                ],
+                "summary": "Connect to AI Chat WebSocket session",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Interview Session ID",
+                        "name": "session_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/api/v1/interviews/start": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a new system design interview session and returns the initial question.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "interviews"
+                ],
+                "summary": "Start a new system design interview",
+                "parameters": [
+                    {
+                        "description": "Interview Setup Details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_interview.CreateInterviewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_interview.StartInterviewResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "{\"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "{\"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "{\"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/interviews/{id}/report": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves the evaluation report, score, and feedback of an interview session by ID.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "interviews"
+                ],
+                "summary": "Get the report of a completed interview",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Interview Session ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_interview.Interview"
+                        }
+                    },
+                    "202": {
+                        "description": "{\"status\": \"evaluation in progress\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "{\"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "{\"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "{\"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/callback/{provider}": {
             "get": {
                 "description": "Handles the callback from the OAuth provider, exchanges the code for tokens, logs the user in, and redirects to the frontend dashboard.",
@@ -45,13 +200,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse"
                         }
                     }
                 }
@@ -77,7 +232,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.ForgotPasswordRequest"
+                            "$ref": "#/definitions/internal_auth.ForgotPasswordRequest"
                         }
                     }
                 ],
@@ -85,13 +240,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse"
                         }
                     }
                 }
@@ -117,7 +272,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.LoginRequest"
+                            "$ref": "#/definitions/internal_auth.LoginRequest"
                         }
                     }
                 ],
@@ -127,13 +282,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.APIResponse"
+                                    "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/auth.LoginResponse"
+                                            "$ref": "#/definitions/internal_auth.LoginResponse"
                                         }
                                     }
                                 }
@@ -143,13 +298,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse"
                         }
                     }
                 }
@@ -178,7 +333,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse"
                         }
                     }
                 }
@@ -208,7 +363,7 @@ const docTemplate = `{
                         "name": "request",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/auth.LogoutRequest"
+                            "$ref": "#/definitions/internal_auth.LogoutRequest"
                         }
                     }
                 ],
@@ -216,19 +371,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse"
                         }
                     }
                 }
@@ -253,7 +408,7 @@ const docTemplate = `{
                         "name": "request",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/auth.RefreshRequest"
+                            "$ref": "#/definitions/internal_auth.RefreshRequest"
                         }
                     }
                 ],
@@ -263,13 +418,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.APIResponse"
+                                    "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/auth.LoginResponse"
+                                            "$ref": "#/definitions/internal_auth.LoginResponse"
                                         }
                                     }
                                 }
@@ -279,13 +434,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse"
                         }
                     }
                 }
@@ -311,7 +466,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.RegisterRequest"
+                            "$ref": "#/definitions/internal_auth.RegisterRequest"
                         }
                     }
                 ],
@@ -321,13 +476,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.APIResponse"
+                                    "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/auth.UserResponse"
+                                            "$ref": "#/definitions/internal_auth.UserResponse"
                                         }
                                     }
                                 }
@@ -337,7 +492,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse"
                         }
                     }
                 }
@@ -363,7 +518,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.ResendOTPRequest"
+                            "$ref": "#/definitions/internal_auth.ResendOTPRequest"
                         }
                     }
                 ],
@@ -371,13 +526,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse"
                         }
                     }
                 }
@@ -403,7 +558,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.ResetPasswordRequest"
+                            "$ref": "#/definitions/internal_auth.ResetPasswordRequest"
                         }
                     }
                 ],
@@ -411,13 +566,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse"
                         }
                     }
                 }
@@ -443,7 +598,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.VerifyEmailRequest"
+                            "$ref": "#/definitions/internal_auth.VerifyEmailRequest"
                         }
                     }
                 ],
@@ -451,13 +606,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse"
                         }
                     }
                 }
@@ -483,7 +638,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.VerifyResetOTPRequest"
+                            "$ref": "#/definitions/internal_auth.VerifyResetOTPRequest"
                         }
                     }
                 ],
@@ -493,13 +648,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.APIResponse"
+                                    "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/auth.VerifyResetOTPResponse"
+                                            "$ref": "#/definitions/internal_auth.VerifyResetOTPResponse"
                                         }
                                     }
                                 }
@@ -509,7 +664,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_pkg_response.APIResponse"
                         }
                     }
                 }
@@ -517,7 +672,22 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "auth.ForgotPasswordRequest": {
+        "github_com_MonuChaudhary14_Archon_pkg_response.APIResponse": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "error": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_auth.ForgotPasswordRequest": {
             "type": "object",
             "required": [
                 "email"
@@ -528,7 +698,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.LoginRequest": {
+        "internal_auth.LoginRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -543,7 +713,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.LoginResponse": {
+        "internal_auth.LoginResponse": {
             "type": "object",
             "properties": {
                 "access_token": {
@@ -554,7 +724,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.LogoutRequest": {
+        "internal_auth.LogoutRequest": {
             "type": "object",
             "required": [
                 "refresh_token"
@@ -565,7 +735,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.RefreshRequest": {
+        "internal_auth.RefreshRequest": {
             "type": "object",
             "required": [
                 "refresh_token"
@@ -576,7 +746,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.RegisterRequest": {
+        "internal_auth.RegisterRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -599,7 +769,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.ResendOTPRequest": {
+        "internal_auth.ResendOTPRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -618,7 +788,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.ResetPasswordRequest": {
+        "internal_auth.ResetPasswordRequest": {
             "type": "object",
             "required": [
                 "new_password",
@@ -635,7 +805,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.UserResponse": {
+        "internal_auth.UserResponse": {
             "type": "object",
             "properties": {
                 "email": {
@@ -649,7 +819,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.VerifyEmailRequest": {
+        "internal_auth.VerifyEmailRequest": {
             "type": "object",
             "properties": {
                 "email": {
@@ -660,7 +830,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.VerifyResetOTPRequest": {
+        "internal_auth.VerifyResetOTPRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -675,7 +845,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.VerifyResetOTPResponse": {
+        "internal_auth.VerifyResetOTPResponse": {
             "type": "object",
             "properties": {
                 "reset_token": {
@@ -683,18 +853,89 @@ const docTemplate = `{
                 }
             }
         },
-        "response.APIResponse": {
+        "internal_interview.CreateInterviewRequest": {
+            "type": "object",
+            "required": [
+                "difficulty"
+            ],
+            "properties": {
+                "difficulty": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_interview.Interview": {
             "type": "object",
             "properties": {
-                "data": {},
-                "error": {
+                "deleted_at": {
                     "type": "string"
                 },
-                "message": {
+                "ended_at": {
                     "type": "string"
                 },
-                "success": {
-                    "type": "boolean"
+                "feedback": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "question_id": {
+                    "type": "string"
+                },
+                "score": {
+                    "type": "integer"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_interview.Question": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "type": "string"
+                },
+                "difficulty": {
+                    "type": "string"
+                },
+                "expected_topics": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "time_limit_minutes": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_interview.StartInterviewResponse": {
+            "type": "object",
+            "properties": {
+                "question": {
+                    "$ref": "#/definitions/internal_interview.Question"
+                },
+                "session_id": {
+                    "type": "string"
                 }
             }
         }

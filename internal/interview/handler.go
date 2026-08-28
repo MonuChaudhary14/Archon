@@ -13,6 +13,19 @@ func NewHandler(service Service) *Handler {
 	return &Handler{service: service}
 }
 
+// StartInterview godoc
+// @Summary      Start a new system design interview
+// @Description  Creates a new system design interview session and returns the initial question.
+// @Tags         interviews
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request body CreateInterviewRequest true "Interview Setup Details"
+// @Success      200 {object} StartInterviewResponse
+// @Failure      400 {object} map[string]string "{"error": "..."}"
+// @Failure      401 {object} map[string]string "{"error": "..."}"
+// @Failure      500 {object} map[string]string "{"error": "..."}"
+// @Router       /api/v1/interviews/start [post]
 func (h *Handler) StartInterview(c *gin.Context) {
 	userIDVal, exists := c.Get("userID")
 	if !exists {
@@ -45,6 +58,19 @@ func (h *Handler) StartInterview(c *gin.Context) {
 	})
 }
 
+// GetInterviewReport godoc
+// @Summary      Get the report of a completed interview
+// @Description  Retrieves the evaluation report, score, and feedback of an interview session by ID.
+// @Tags         interviews
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Interview Session ID"
+// @Success      200 {object} Interview
+// @Success      202 {object} map[string]string "{"status": "evaluation in progress"}"
+// @Failure      400 {object} map[string]string "{"error": "..."}"
+// @Failure      401 {object} map[string]string "{"error": "..."}"
+// @Failure      404 {object} map[string]string "{"error": "..."}"
+// @Router       /api/v1/interviews/{id}/report [get]
 func (h *Handler) GetInterviewReport(c *gin.Context) {
 	userIDVal, exists := c.Get("userID")
 	if !exists {
