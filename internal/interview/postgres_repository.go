@@ -109,3 +109,51 @@ func (r *postgresRepository) GetInterviewByID(ctx context.Context, userID int, i
 	}
 	return &i, nil
 }
+
+func (r *postgresRepository) SubmitInterview(ctx context.Context, userID int, interviewID string) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+
+	updateQuery := `
+		UPDATE interviews 
+		SET ended_at = NOW() 
+		WHERE id = $1 AND user_id = $2 AND ended_at IS NULL;
+	`
+	res, err := tx.Exec(ctx, updateQuery, interviewID, userID)
+	if err != nil {
+		return fmt.Errorf("failed to update interview ended_at: %w", err)
+	}
+	if res.RowsAffected() == 0 {
+		return fmt.Errorf("interview already completed or not found")
+	}
+
+	payloadMap := map[string]interface{}{
+		"interview_id": interviewID,
+		"user_id":      userID,
+		"status":       "SUBMITTED",
+	}
+	payloadBytes, err := json.Marshal(payloadMap)
+	if err != nil {
+		return fmt.Errorf("failed to marshal outbox payload: %w", err)
+	}
+
+	insertOutboxQuery := `
+		INSERT INTO outbox_events (aggregate_type, aggregate_id, type, payload)
+		VALUES ('Interview', $1, 'INTERVIEW_SUBMITTED', $2)
+	`
+	_, err = tx.Exec(ctx, insertOutboxQuery, interviewID, payloadBytes)
+	if err != nil {
+		return fmt.Errorf("failed to insert outbox event: %w", err)
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}

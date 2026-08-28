@@ -46,31 +46,36 @@ class KafkaConsumerService:
             await self.process_evaluation(msg)
 
     async def process_message(self, msg):
-        try:
-            data = json.loads(msg.value.decode('utf-8'))
-            
-            if "interview_id" in data and "question_id" in data:
-                session_id = data["interview_id"]
-                question_id = data["question_id"]
-                print(f"Processing INTERVIEW_STARTED event for session: {session_id}")
-                
-                response = await self.llm_service.generate_initial_greeting(question_id, session_id)
-            else:
-                prompt = data.get("prompt")
-                session_id = data.get("session_id", "default")
-                print(f"Processing request for session: {session_id}")
-                
-                response = await self.llm_service.generate_response(prompt, session_id)
+		try:
+			data = json.loads(msg.value.decode('utf-8'))
+			
+			if "interview_id" in data and "question_id" in data:
+				session_id = data["interview_id"]
+				question_id = data["question_id"]
+				print(f"Processing INTERVIEW_STARTED event for session: {session_id}")
+				
+				response = await self.llm_service.generate_initial_greeting(question_id, session_id)
+			elif "status" in data and data["status"] == "SUBMITTED":
+				session_id = data["interview_id"]
+				print(f"Processing INTERVIEW_SUBMITTED event for session: {session_id}")
+				
+				response = await self.llm_service.submit_interview(session_id)
+			else:
+				prompt = data.get("prompt")
+				session_id = data.get("session_id", "default")
+				print(f"Processing request for session: {session_id}")
+				
+				response = await self.llm_service.generate_response(prompt, session_id)
 
-            result_event = {
-                "session_id": session_id,
-                "response": response,
-            }
+			result_event = {
+				"session_id": session_id,
+				"response": response,
+			}
 
-            await self.producer.send_and_wait(
-                'ai.responses',
-                json.dumps(result_event).encode('utf-8')
-            )
+			await self.producer.send_and_wait(
+				'ai.responses',
+				json.dumps(result_event).encode('utf-8')
+			)
 
         except Exception as e:
             print(f"Error processing message: {e}")

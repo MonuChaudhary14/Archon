@@ -82,7 +82,16 @@ func (k *KafkaService) StartConsuming() {
 
 		var resp AIResponse
 		if err := json.Unmarshal(msg.Value, &resp); err == nil {
-			k.hub.SendMessage(resp.SessionID, []byte(resp.Response))
+			payload := map[string]string{
+				"role":    "ai",
+				"content": resp.Response,
+			}
+			payloadBytes, err := json.Marshal(payload)
+			if err == nil {
+				k.hub.SendMessage(resp.SessionID, payloadBytes)
+			} else {
+				log.Printf("Failed to marshal live response JSON: %v\n", err)
+			}
 		}
 	}
 }

@@ -31,3 +31,7 @@ func (s *service) StartInterview(ctx context.Context, userID int, req CreateInte
 func (s *service) GetInterviewByID(ctx context.Context, userID int, interviewID string) (*Interview, error) {
 	return s.repo.GetInterviewByID(ctx, userID, interviewID)
 }
+
+func (s *service) SubmitInterview(ctx context.Context, userID int, interviewID string) error {
+	return s.repo.SubmitInterview(ctx, userID, interviewID)
+}

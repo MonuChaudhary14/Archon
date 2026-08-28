@@ -104,3 +104,45 @@ func (h *Handler) GetInterviewReport(c *gin.Context) {
 
 	c.JSON(http.StatusOK, interview)
 }
+
+// SubmitInterview godoc
+// @Summary      Manually submit/end an interview session
+// @Description  Ends the interview session and triggers the AI evaluation in the background.
+// @Tags         interviews
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Interview Session ID"
+// @Success      200 {object} map[string]string "{"message": "interview submitted successfully"}"
+// @Failure      400 {object} map[string]string "{"error": "..."}"
+// @Failure      401 {object} map[string]string "{"error": "..."}"
+// @Failure      404 {object} map[string]string "{"error": "..."}"
+// @Router       /api/v1/interviews/{id}/submit [post]
+func (h *Handler) SubmitInterview(c *gin.Context) {
+	userIDVal, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized: user ID not found in context"})
+		return
+	}
+
+	userIDUint, ok := userIDVal.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error: invalid user ID format"})
+		return
+	}
+	userID := int(userIDUint)
+
+	interviewID := c.Param("id")
+	if interviewID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "interview ID is required"})
+		return
+	}
+
+	err := h.service.SubmitInterview(c.Request.Context(), userID, interviewID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "interview submitted successfully"})
+}

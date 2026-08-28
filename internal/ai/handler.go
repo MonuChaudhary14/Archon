@@ -102,10 +102,25 @@ func ChatHandler(
 			for _, msgStr := range historyKeys {
 				var msgMap map[string]interface{}
 				if err := json.Unmarshal([]byte(msgStr), &msgMap); err == nil {
-					if msgType, ok := msgMap["type"].(string); ok && msgType == "ai" {
-						if data, ok := msgMap["data"].(map[string]interface{}); ok {
-							if content, ok := data["content"].(string); ok {
-								_ = ws.WriteMessage(websocket.TextMessage, []byte(content))
+					var role string
+					msgType, _ := msgMap["type"].(string)
+					if msgType == "human" {
+						role = "user"
+					} else if msgType == "ai" {
+						role = "ai"
+					} else {
+						continue
+					}
+
+					if data, ok := msgMap["data"].(map[string]interface{}); ok {
+						if content, ok := data["content"].(string); ok {
+							payload := map[string]string{
+								"role":    role,
+								"content": content,
+							}
+							payloadBytes, err := json.Marshal(payload)
+							if err == nil {
+								_ = ws.WriteMessage(websocket.TextMessage, payloadBytes)
 							}
 						}
 					}

@@ -290,3 +290,17 @@ class LLMService:
 
         except Exception as e:
             return f"Failed to generate response: {str(e)}"
+
+    async def submit_interview(self, session_id: str) -> str:
+        self.set_interview_state(session_id, "COMPLETED")
+        await self.publish_evaluation_request(session_id)
+        
+        response = "Thank you! Your interview has been submitted. We are generating your feedback report now."
+        if settings.REDIS_URL:
+            try:
+                history = self.get_message_history(session_id)
+                history.add_ai_message(response)
+            except Exception as e:
+                print(f"Failed to append final submit greeting to Redis: {e}")
+                
+        return response
