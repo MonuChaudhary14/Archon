@@ -60,17 +60,26 @@ func NewServer(cfg *config.Config) (*Server, error) {
 
 	diagRepo := diagram.NewRepository(db)
 
-	aiGroup := router.Group("/")
-	kafkaSvc := ai.Setup(aiGroup, redisClient, diagRepo)
+	jwtSecret := os.Getenv("JWT_SECRET")
 
 	interviewRepo := interview.NewRepository(db)
 	interviewService := interview.NewService(interviewRepo)
 	interviewHandler := interview.NewHandler(interviewService)
 
+	verifyOwner := func(ctx context.Context, userID int, interviewID string) (bool, error) {
+		_, err := interviewRepo.GetInterviewByID(ctx, userID, interviewID)
+		if err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+
+	aiGroup := router.Group("/")
+	kafkaSvc := ai.Setup(aiGroup, redisClient, diagRepo, jwtSecret, userRepo, verifyOwner)
+
 	outboxWorker := interview.NewOutboxWorker(db, kafkaSvc, 2*time.Second)
 	go outboxWorker.Start(context.Background())
 
-	jwtSecret := os.Getenv("JWT_SECRET")
 	interviewGroup := router.Group("/api/v1/interviews")
 	interviewGroup.Use(auth.AuthMiddleware(jwtSecret, userRepo))
 	interviewGroup.POST("/start", interviewHandler.StartInterview)

@@ -16,6 +16,9 @@ func AuthMiddleware(secret string, repo UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString, err := c.Cookie("access_token")
 		if err != nil || tokenString == "" {
+			tokenString = c.Query("token")
+		}
+		if tokenString == "" {
 			authHeader := c.GetHeader("Authorization")
 			if authHeader == "" {
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "authorization token is required"})

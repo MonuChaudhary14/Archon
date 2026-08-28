@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/MonuChaudhary14/Archon/internal/auth"
 	"github.com/MonuChaudhary14/Archon/internal/diagram"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -23,13 +24,20 @@ type WSMessage struct {
 	Data json.RawMessage `json:"data"`
 }
 
-func Setup(router *gin.RouterGroup, redisClient *redis.Client, diagRepo diagram.Repository) *KafkaService {
+func Setup(
+	router *gin.RouterGroup,
+	redisClient *redis.Client,
+	diagRepo diagram.Repository,
+	jwtSecret string,
+	userRepo auth.UserRepository,
+	verifyOwner func(context.Context, int, string) (bool, error),
+) *KafkaService {
 	hub := NewHub()
 	kafkaSvc := NewKafkaService(hub)
 
 	go kafkaSvc.StartConsuming()
 
-	router.GET("/ai/chat", ChatHandler(hub, kafkaSvc, redisClient, diagRepo))
+	router.GET("/ai/chat", auth.AuthMiddleware(jwtSecret, userRepo), ChatHandler(hub, kafkaSvc, redisClient, diagRepo, verifyOwner))
 
 	return kafkaSvc
 }
@@ -40,7 +48,13 @@ func Setup(router *gin.RouterGroup, redisClient *redis.Client, diagRepo diagram.
 // @Tags         ai
 // @Param        session_id query string true "Interview Session ID"
 // @Router       /ai/chat [get]
-func ChatHandler(hub *Hub, kafkaSvc *KafkaService, redisClient *redis.Client, diagRepo diagram.Repository) gin.HandlerFunc {
+func ChatHandler(
+	hub *Hub,
+	kafkaSvc *KafkaService,
+	redisClient *redis.Client,
+	diagRepo diagram.Repository,
+	verifyOwner func(context.Context, int, string) (bool, error),
+) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sessionID := c.Query("session_id")
 
@@ -48,6 +62,25 @@ func ChatHandler(hub *Hub, kafkaSvc *KafkaService, redisClient *redis.Client, di
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": "session_id required",
 			})
+			return
+		}
+
+		userIDVal, exists := c.Get("userID")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized: user ID not found in context"})
+			return
+		}
+
+		userIDUint, ok := userIDVal.(uint)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error: invalid user ID format"})
+			return
+		}
+		userID := int(userIDUint)
+
+		isOwner, err := verifyOwner(c.Request.Context(), userID, sessionID)
+		if err != nil || !isOwner {
+			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden: you do not have access to this interview session"})
 			return
 		}
 
