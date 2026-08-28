@@ -9,6 +9,7 @@ from app.services.kafka_service import KafkaConsumerService
 async def lifespan(app: FastAPI):
     llm_service = LLMService()
     kafka_service = KafkaConsumerService(llm_service)
+    llm_service.set_kafka_producer(kafka_service.producer)
 
     task = asyncio.create_task(kafka_service.start())
     yield

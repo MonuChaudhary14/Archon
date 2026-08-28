@@ -28,6 +28,27 @@ class LLMService:
 
         self.eval_service = EvaluationService(self.llm, self.db)
         self.knowledge_service = KnowledgeService()
+        self.producer = None
+
+    def set_kafka_producer(self, producer):
+        self.producer = producer
+
+    async def publish_evaluation_request(self, session_id: str):
+        if not self.producer:
+            print(f"Warning: Kafka producer not set in LLMService. Falling back to asyncio task.")
+            asyncio.create_task(self.eval_service.evaluate_session(session_id))
+            return
+        
+        try:
+            payload = {"session_id": session_id}
+            await self.producer.send_and_wait(
+                "ai.evaluations",
+                json.dumps(payload).encode("utf-8")
+            )
+            print(f"Published evaluation request to ai.evaluations for session: {session_id}")
+        except Exception as e:
+            print(f"Failed to publish evaluation request: {e}. Falling back to asyncio task.")
+            asyncio.create_task(self.eval_service.evaluate_session(session_id))
 
     def get_message_history(self, session_id: str):
         return RedisChatMessageHistory(session_id, url=settings.REDIS_URL)
@@ -257,7 +278,7 @@ class LLMService:
                     self.set_interview_state(session_id, next_state)
                     
                     if next_state == "COMPLETED":
-                        asyncio.create_task(self.eval_service.evaluate_session(session_id))
+                        await self.publish_evaluation_request(session_id)
 
                 output = ai_response
 
