@@ -3,6 +3,7 @@ package interview
 import (
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"strings"
 )
 
 type Handler struct {
@@ -11,6 +12,21 @@ type Handler struct {
 
 func NewHandler(service Service) *Handler {
 	return &Handler{service: service}
+}
+
+func normalizeDifficulty(d string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(d)) {
+	case "beginner", "easy":
+		return "Beginner", true
+	case "intermediate", "medium":
+		return "Intermediate", true
+	case "senior", "hard":
+		return "Senior", true
+	case "staff":
+		return "Staff", true
+	default:
+		return "", false
+	}
 }
 
 // StartInterview godoc
@@ -45,6 +61,13 @@ func (h *Handler) StartInterview(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request, 'difficulty' is required"})
 		return
 	}
+
+	normDiff, valid := normalizeDifficulty(req.Difficulty)
+	if !valid {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid difficulty. Allowed values are 'Beginner' (or 'easy'), 'Intermediate' (or 'medium'), 'Senior' (or 'hard'), 'Staff'"})
+		return
+	}
+	req.Difficulty = normDiff
 
 	question, sessionID, err := h.service.StartInterview(c.Request.Context(), userID, req)
 	if err != nil {
