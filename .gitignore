@@ -5,6 +5,7 @@
 *.so
 *.dylib
 api
+main
 
 # Test binaries
 *.test
