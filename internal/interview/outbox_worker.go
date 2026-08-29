@@ -85,7 +85,7 @@ func (w *OutboxWorker) processPendingEvents(ctx context.Context) {
 	rows.Close()
 
 	for _, ev := range events {
-		pubCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
+		pubCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		err = w.publisher.PublishEvent(pubCtx, []byte(ev.aggregateID), ev.payload)
 		cancel()
 
