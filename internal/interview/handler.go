@@ -81,6 +81,26 @@ func (h *Handler) StartInterview(c *gin.Context) {
 	})
 }
 
+// ListQuestions godoc
+// @Summary      List all available system design questions
+// @Description  Retrieves the full list of system design interview topics.
+// @Tags         interviews
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {array} Question
+// @Failure      401 {object} map[string]string "{"error": "..."}"
+// @Failure      500 {object} map[string]string "{"error": "..."}"
+// @Router       /api/v1/interviews/questions [get]
+func (h *Handler) ListQuestions(c *gin.Context) {
+	questions, err := h.service.GetQuestions(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, questions)
+}
+
 // GetInterviewReport godoc
 // @Summary      Get the report of a completed interview
 // @Description  Retrieves the evaluation report, score, and feedback of an interview session by ID.

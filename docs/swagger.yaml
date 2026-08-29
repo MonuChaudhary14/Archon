@@ -124,14 +124,15 @@ definitions:
   internal_interview.CreateInterviewRequest:
     properties:
       difficulty:
-        description: 'Difficulty level: Beginner (or easy), Intermediate (or medium),
-          Senior (or hard), Staff'
         enum:
         - Beginner
         - Intermediate
         - Senior
         - Staff
         example: Senior
+        type: string
+      question_id:
+        example: 8d2f6c90-9c12-4266-a456-426614174000
         type: string
     required:
     - difficulty
@@ -294,6 +295,35 @@ paths:
       security:
       - BearerAuth: []
       summary: Manually submit/end an interview session
+      tags:
+      - interviews
+  /api/v1/interviews/questions:
+    get:
+      description: Retrieves the full list of system design interview topics.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/internal_interview.Question'
+            type: array
+        "401":
+          description: '{"error": "..."}'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: '{"error": "..."}'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List all available system design questions
       tags:
       - interviews
   /api/v1/interviews/start:

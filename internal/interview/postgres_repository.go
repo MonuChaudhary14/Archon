@@ -38,6 +38,53 @@ func (r *postgresRepository) GetRandomUnansweredQuestion(ctx context.Context, us
 	return &q, nil
 }
 
+func (r *postgresRepository) GetQuestions(ctx context.Context) ([]*Question, error) {
+	query := `
+		SELECT id, title, difficulty, expected_topics, time_limit_minutes, created_at 
+		FROM questions 
+		WHERE deleted_at IS NULL
+		ORDER BY title ASC;
+	`
+	rows, err := r.db.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch questions: %w", err)
+	}
+	defer rows.Close()
+
+	var questions []*Question
+	for rows.Next() {
+		var q Question
+		err := rows.Scan(
+			&q.ID, &q.Title, &q.Difficulty, &q.ExpectedTopics, &q.TimeLimitMinutes, &q.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan question: %w", err)
+		}
+		questions = append(questions, &q)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error reading question rows: %w", err)
+	}
+
+	return questions, nil
+}
+
+func (r *postgresRepository) GetQuestionByID(ctx context.Context, id string) (*Question, error) {
+	query := `
+		SELECT id, title, difficulty, expected_topics, time_limit_minutes, created_at 
+		FROM questions 
+		WHERE id = $1 AND deleted_at IS NULL;
+	`
+	var q Question
+	err := r.db.QueryRow(ctx, query, id).Scan(
+		&q.ID, &q.Title, &q.Difficulty, &q.ExpectedTopics, &q.TimeLimitMinutes, &q.CreatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch question by id: %w", err)
+	}
+	return &q, nil
+}
+
 func (r *postgresRepository) CreateInterview(ctx context.Context, userID int, questionID string) (string, error) {
 
 	tx, err := r.db.Begin(ctx)

@@ -34,6 +34,52 @@ const docTemplate = `{
                 "responses": {}
             }
         },
+        "/api/v1/interviews/questions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves the full list of system design interview topics.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "interviews"
+                ],
+                "summary": "List all available system design questions",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/internal_interview.Question"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "{\"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "{\"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/interviews/start": {
             "post": {
                 "security": [
@@ -927,7 +973,6 @@ const docTemplate = `{
             ],
             "properties": {
                 "difficulty": {
-                    "description": "Difficulty level: Beginner (or easy), Intermediate (or medium), Senior (or hard), Staff",
                     "type": "string",
                     "enum": [
                         "Beginner",
@@ -936,6 +981,10 @@ const docTemplate = `{
                         "Staff"
                     ],
                     "example": "Senior"
+                },
+                "question_id": {
+                    "type": "string",
+                    "example": "8d2f6c90-9c12-4266-a456-426614174000"
                 }
             }
         },

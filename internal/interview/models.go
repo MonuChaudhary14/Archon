@@ -26,7 +26,8 @@ type Interview struct {
 	DeletedAt  *time.Time       `json:"deleted_at,omitempty"`
 }
 type CreateInterviewRequest struct {
-	Difficulty string `json:"difficulty" binding:"required" enums:"Beginner,Intermediate,Senior,Staff" example:"Senior"`
+	Difficulty string  `json:"difficulty" binding:"required" enums:"Beginner,Intermediate,Senior,Staff" example:"Senior"`
+	QuestionID *string `json:"question_id,omitempty" example:"8d2f6c90-9c12-4266-a456-426614174000"`
 }
 
 type StartInterviewResponse struct {
