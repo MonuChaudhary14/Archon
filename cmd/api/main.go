@@ -4,7 +4,9 @@ import (
 	"log"
 
 	_ "github.com/MonuChaudhary14/Archon/docs"
+	"github.com/MonuChaudhary14/Archon/internal/database"
 	"github.com/MonuChaudhary14/Archon/internal/server"
+	"github.com/MonuChaudhary14/Archon/migrations"
 	"github.com/MonuChaudhary14/Archon/pkg/config"
 	"github.com/joho/godotenv"
 )
@@ -25,6 +27,10 @@ func main() {
 	}
 
 	cfg := config.Load()
+
+	if err := database.RunMigrations(cfg.DatabaseURL, migrations.FS); err != nil {
+		log.Fatalf("Database migration failed: %v", err)
+	}
 
 	srv, err := server.NewServer(cfg)
 	if err != nil {
