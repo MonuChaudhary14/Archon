@@ -26,6 +26,7 @@ COPY pyproject.toml ./
 RUN poetry install --no-root --no-dev
 
 COPY ./app ./app
+COPY seed_qdrant.py ./
 
 EXPOSE 8122
 CMD ["poetry", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8122"]
