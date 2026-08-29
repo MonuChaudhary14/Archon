@@ -45,8 +45,9 @@ func NewKafkaService(hub ConnectionHub) *KafkaService {
 	}
 
 	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers: brokers,
-		Topic:   "ai.responses",
+		Brokers:     brokers,
+		Topic:       "ai.responses",
+		StartOffset: kafka.LastOffset,
 	})
 
 	return &KafkaService{

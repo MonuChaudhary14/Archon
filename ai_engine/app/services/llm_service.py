@@ -12,7 +12,7 @@ from app.services.knowledge_service import KnowledgeService
 class LLMService:
     def __init__(self):
         self.llm = ChatGroq(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             temperature=0.7,
             groq_api_key=settings.GROQ_API_KEY
         )
@@ -130,12 +130,22 @@ class LLMService:
 
     async def generate_initial_greeting(self, question_id: str, session_id: str) -> str:
         details = self.get_question_details(question_id)
-        if not details:
-            title = "System Design"
-            difficulty = "Senior"
-        else:
-            title = details["title"]
-            difficulty = details["difficulty"]
+        title = details["title"] if details else "System Design"
+        difficulty = details["difficulty"] if details else "Senior"
+
+        # Idempotency check: check if the session already has messages
+        if settings.REDIS_URL:
+            try:
+                history = self.get_message_history(session_id)
+                messages = history.messages
+                if len(messages) > 0:
+                    print(f"Session {session_id} already has chat history. Skipping duplicate initial greeting generation.")
+                    for msg in messages:
+                        if msg.type == "ai":
+                            return msg.content
+                    return f"Welcome back! Let's continue our system design interview for '{title}'."
+            except Exception as history_err:
+                print(f"Failed to check message history for idempotency: {history_err}")
 
         system_prompt = (
             f"You are a professional system design interviewer. "
@@ -158,10 +168,13 @@ class LLMService:
         except Exception as e:
             fallback = f"Welcome! Let's start the system design interview for '{title}'. What functional and non-functional requirements do you suggest we support?"
             if settings.REDIS_URL:
-                history = self.get_message_history(session_id)
-                history.clear()
-                history.add_ai_message(fallback)
-                self.set_interview_state(session_id, "REQUIREMENTS")
+                try:
+                    history = self.get_message_history(session_id)
+                    history.clear()
+                    history.add_ai_message(fallback)
+                    self.set_interview_state(session_id, "REQUIREMENTS")
+                except Exception as redis_err:
+                    print(f"Failed to save fallback greeting to Redis history: {redis_err}")
             return fallback
 
     async def generate_response(self, prompt: str, session_id: str = "default") -> str:
