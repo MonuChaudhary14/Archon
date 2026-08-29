@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/MonuChaudhary14/Archon/internal/auth"
 	"github.com/MonuChaudhary14/Archon/internal/diagram"
@@ -11,6 +13,25 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
 )
+
+const (
+	writeWait      = 10 * time.Second
+	pongWait       = 60 * time.Second
+	pingPeriod     = (pongWait * 9) / 10
+	maxMessageSize = 512 * 1024
+)
+
+type SafeWebSocketConn struct {
+	mu sync.Mutex
+	*websocket.Conn
+}
+
+func (s *SafeWebSocketConn) WriteMessage(messageType int, data []byte) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_ = s.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+	return s.Conn.WriteMessage(messageType, data)
+}
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
@@ -26,7 +47,7 @@ func Setup(
 	userRepo auth.UserRepository,
 	verifyOwner func(context.Context, int, string) (bool, error),
 ) *KafkaService {
-	hub := NewHub()
+	hub := NewHub(redisClient)
 	kafkaSvc := NewKafkaService(hub)
 
 	go kafkaSvc.StartConsuming()
@@ -83,11 +104,40 @@ func ChatHandler(
 			log.Println("WebSocket upgrade failed:", err)
 			return
 		}
-		defer func() {
-			_ = ws.Close()
+
+		ws.SetReadLimit(maxMessageSize)
+		_ = ws.SetReadDeadline(time.Now().Add(pongWait))
+		ws.SetPongHandler(func(string) error {
+			_ = ws.SetReadDeadline(time.Now().Add(pongWait))
+			return nil
+		})
+
+		safeWs := &SafeWebSocketConn{Conn: ws}
+
+		ctx, cancel := context.WithCancel(c.Request.Context())
+		defer cancel()
+
+		go func() {
+			ticker := time.NewTicker(pingPeriod)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					if err := safeWs.WriteMessage(websocket.PingMessage, nil); err != nil {
+						_ = safeWs.Close()
+						return
+					}
+				case <-ctx.Done():
+					return
+				}
+			}
 		}()
 
-		if err := processor.ProcessSession(c.Request.Context(), sessionID, ws); err != nil {
+		defer func() {
+			_ = safeWs.Close()
+		}()
+
+		if err := processor.ProcessSession(c.Request.Context(), sessionID, safeWs); err != nil {
 			log.Printf("WebSocket session finished: %v", err)
 		}
 	}

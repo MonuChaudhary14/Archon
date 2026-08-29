@@ -44,9 +44,15 @@ func NewKafkaService(hub ConnectionHub) *KafkaService {
 		Balancer: &kafka.LeastBytes{},
 	}
 
+	groupID := os.Getenv("KAFKA_GROUP_ID")
+	if groupID == "" {
+		groupID = "archon-go-gateways"
+	}
+
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:     brokers,
 		Topic:       "ai.responses",
+		GroupID:     groupID,
 		StartOffset: kafka.LastOffset,
 	})
 
