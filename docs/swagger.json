@@ -164,6 +164,73 @@
                 }
             }
         },
+        "/api/v1/interviews/{id}/submit": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Ends the interview session and triggers the AI evaluation in the background.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "interviews"
+                ],
+                "summary": "Manually submit/end an interview session",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Interview Session ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"message\": \"interview submitted successfully\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "{\"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "{\"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "{\"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/callback/{provider}": {
             "get": {
                 "description": "Handles the callback from the OAuth provider, exchanges the code for tokens, logs the user in, and redirects to the frontend dashboard.",
@@ -854,7 +921,15 @@
             ],
             "properties": {
                 "difficulty": {
-                    "type": "string"
+                    "description": "Difficulty level: Beginner (or easy), Intermediate (or medium), Senior (or hard), Staff",
+                    "type": "string",
+                    "enum": [
+                        "Beginner",
+                        "Intermediate",
+                        "Senior",
+                        "Staff"
+                    ],
+                    "example": "Senior"
                 }
             }
         },

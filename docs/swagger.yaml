@@ -124,6 +124,14 @@ definitions:
   internal_interview.CreateInterviewRequest:
     properties:
       difficulty:
+        description: 'Difficulty level: Beginner (or easy), Intermediate (or medium),
+          Senior (or hard), Staff'
+        enum:
+        - Beginner
+        - Intermediate
+        - Senior
+        - Staff
+        example: Senior
         type: string
     required:
     - difficulty
@@ -242,6 +250,50 @@ paths:
       security:
       - BearerAuth: []
       summary: Get the report of a completed interview
+      tags:
+      - interviews
+  /api/v1/interviews/{id}/submit:
+    post:
+      consumes:
+      - application/json
+      description: Ends the interview session and triggers the AI evaluation in the
+        background.
+      parameters:
+      - description: Interview Session ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"message": "interview submitted successfully"}'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: '{"error": "..."}'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: '{"error": "..."}'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: '{"error": "..."}'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Manually submit/end an interview session
       tags:
       - interviews
   /api/v1/interviews/start:
