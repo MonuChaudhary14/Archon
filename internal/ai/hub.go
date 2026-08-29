@@ -8,16 +8,16 @@ import (
 
 type Hub struct {
 	mu          sync.RWMutex
-	connections map[string]*websocket.Conn
+	connections map[string]WebSocketConnection
 }
 
 func NewHub() *Hub {
 	return &Hub{
-		connections: make(map[string]*websocket.Conn),
+		connections: make(map[string]WebSocketConnection),
 	}
 }
 
-func (h *Hub) Register(sessionID string, conn *websocket.Conn) {
+func (h *Hub) Register(sessionID string, conn WebSocketConnection) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.connections[sessionID] = conn

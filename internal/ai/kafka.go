@@ -15,7 +15,7 @@ type KafkaService struct {
 	writer        *kafka.Writer
 	diagramWriter *kafka.Writer
 	reader        *kafka.Reader
-	hub           *Hub
+	hub           ConnectionHub
 }
 
 type AIResponse struct {
@@ -23,7 +23,7 @@ type AIResponse struct {
 	Response  string `json:"response"`
 }
 
-func NewKafkaService(hub *Hub) *KafkaService {
+func NewKafkaService(hub ConnectionHub) *KafkaService {
 	brokersEnv := os.Getenv("KAFKA_BROKERS")
 	var brokers []string
 	if brokersEnv == "" {
