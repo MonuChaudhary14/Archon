@@ -121,6 +121,45 @@ definitions:
       reset_token:
         type: string
     type: object
+  internal_diagram.DiagramResponse:
+    properties:
+      edges:
+        items:
+          $ref: '#/definitions/internal_diagram.Edge'
+        type: array
+      nodes:
+        items:
+          $ref: '#/definitions/internal_diagram.Node'
+        type: array
+    type: object
+  internal_diagram.Edge:
+    properties:
+      id:
+        type: string
+      interview_id:
+        type: string
+      source:
+        type: string
+      target:
+        type: string
+      type:
+        type: string
+    type: object
+  internal_diagram.Node:
+    properties:
+      id:
+        type: string
+      interview_id:
+        type: string
+      label:
+        type: string
+      type:
+        type: string
+      x:
+        type: number
+      "y":
+        type: number
+    type: object
   internal_interview.CreateInterviewRequest:
     properties:
       difficulty:
@@ -207,6 +246,52 @@ paths:
       summary: Connect to AI Chat WebSocket session
       tags:
       - ai
+  /api/v1/interviews/{id}/diagram:
+    get:
+      description: Retrieves the diagram nodes and edges for a specific interview
+        session.
+      parameters:
+      - description: Interview Session ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_diagram.DiagramResponse'
+        "400":
+          description: '{"error": "..."}'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: '{"error": "..."}'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: '{"error": "..."}'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: '{"error": "..."}'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get diagram state
+      tags:
+      - diagrams
   /api/v1/interviews/{id}/report:
     get:
       description: Retrieves the evaluation report, score, and feedback of an interview

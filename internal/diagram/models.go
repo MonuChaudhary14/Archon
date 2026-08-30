@@ -16,3 +16,9 @@ type Edge struct {
 	Target      string `json:"target"`
 	Type        string `json:"type"`
 }
+
+type DiagramResponse struct {
+	Nodes []Node `json:"nodes"`
+	Edges []Edge `json:"edges"`
+}
+

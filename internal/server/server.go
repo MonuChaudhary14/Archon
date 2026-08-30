@@ -80,12 +80,15 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	outboxWorker := interview.NewOutboxWorker(db, kafkaSvc, 2*time.Second)
 	go outboxWorker.Start(context.Background())
 
+	diagramHandler := diagram.NewHandler(diagRepo, verifyOwner)
+
 	interviewGroup := router.Group("/api/v1/interviews")
 	interviewGroup.Use(auth.AuthMiddleware(jwtSecret, userRepo))
 	interviewGroup.POST("/start", interviewHandler.StartInterview)
 	interviewGroup.GET("/questions", interviewHandler.ListQuestions)
 	interviewGroup.GET("/:id/report", interviewHandler.GetInterviewReport)
 	interviewGroup.POST("/:id/submit", interviewHandler.SubmitInterview)
+	interviewGroup.GET("/:id/diagram", diagramHandler.GetDiagram)
 
 	// Swagger setup
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
