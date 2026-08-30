@@ -8,6 +8,7 @@ import redis
 import asyncio
 from app.services.evaluation_service import EvaluationService
 from app.services.knowledge_service import KnowledgeService
+from app.services.diagram_service import DiagramService
 
 class LLMService:
     def __init__(self):
@@ -28,6 +29,7 @@ class LLMService:
 
         self.eval_service = EvaluationService(self.llm, self.db)
         self.knowledge_service = KnowledgeService()
+        self.diagram_service = DiagramService(self.llm)
         self.producer = None
 
     def set_kafka_producer(self, producer):
@@ -253,7 +255,8 @@ class LLMService:
             diagram_ctx = self.eval_service.get_diagram_context(session_id)
             diagram_info = ""
             if diagram_ctx and (diagram_ctx["nodes"] or diagram_ctx["edges"]):
-                diagram_info = f"\nCandidate's current whiteboard diagram:\nNodes: {json.dumps(diagram_ctx['nodes'])}\nEdges: {json.dumps(diagram_ctx['edges'])}"
+                parsed = self.diagram_service.parse_diagram_to_text(diagram_ctx)
+                diagram_info = f"\nCandidate's current whiteboard diagram:\n{parsed}"
 
             history = None
             if settings.REDIS_URL:
@@ -317,3 +320,25 @@ class LLMService:
                 print(f"Failed to append final submit greeting to Redis: {e}")
                 
         return response
+
+    async def process_diagram_event(self, session_id: str) -> str:
+        diagram_ctx = self.eval_service.get_diagram_context(session_id)
+        if not diagram_ctx:
+            return ""
+        parsed_diagram = self.diagram_service.parse_diagram_to_text(diagram_ctx)
+        history = self.get_message_history(session_id)
+        messages = history.messages
+        if not messages:
+            return ""
+        critique = await self.diagram_service.generate_diagram_critique(
+            session_id, parsed_diagram, messages
+        )
+        if critique.get("should_respond"):
+            response = critique.get("response", "")
+            if response and settings.REDIS_URL:
+                try:
+                    history.add_ai_message(response)
+                except Exception as redis_err:
+                    print(f"Failed to save diagram critique to Redis history: {redis_err}")
+            return response
+        return ""
