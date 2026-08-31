@@ -10,9 +10,10 @@ from app.services.evaluation_service import EvaluationService
 from app.services.knowledge_service import KnowledgeService
 from app.services.diagram_service import DiagramService
 from app.services.interview_repository import SQLInterviewRepository
+from app.core.interfaces import InterviewRepository
 
 class LLMService:
-    def __init__(self):
+    def __init__(self, repo: InterviewRepository | None = None):
         self.llm = ChatGroq(
             model="openai/gpt-oss-20b",
             temperature=0.7,
@@ -28,7 +29,7 @@ class LLMService:
         if settings.REDIS_URL:
             self.redis_client = redis.from_url(settings.REDIS_URL)
 
-        self.repo = SQLInterviewRepository(self.db)
+        self.repo = repo or SQLInterviewRepository(self.db)
         self.eval_service = EvaluationService(self.llm, self.repo)
         self.knowledge_service = KnowledgeService()
         self.diagram_service = DiagramService(self.llm)

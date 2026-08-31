@@ -2,8 +2,31 @@ import json
 from typing import Dict, Any
 from sqlalchemy import text
 from langchain_community.utilities.sql_database import SQLDatabase
+from app.core.interfaces import InterviewRepository
 
-class SQLInterviewRepository:
+GET_INTERVIEW_CONTEXT_QUERY = """
+    SELECT q.title, q.difficulty, q.expected_topics 
+    FROM interviews i 
+    JOIN questions q ON i.question_id = q.id 
+    WHERE i.id = :session_id
+"""
+
+GET_DIAGRAM_NODES_QUERY = "SELECT id, type, label FROM diagram_nodes WHERE interview_id = :session_id"
+GET_DIAGRAM_EDGES_QUERY = "SELECT id, source, target, type FROM diagram_edges WHERE interview_id = :session_id"
+
+SAVE_EVALUATION_REPORT_QUERY = """
+    UPDATE interviews 
+    SET score = :score, ended_at = NOW(), feedback = :feedback 
+    WHERE id = :session_id
+"""
+
+SAVE_EVALUATION_ERROR_QUERY = """
+    UPDATE interviews 
+    SET score = -1, ended_at = NOW(), feedback = :feedback 
+    WHERE id = :session_id
+"""
+
+class SQLInterviewRepository(InterviewRepository):
     def __init__(self, db: SQLDatabase):
         self.db = db
 
@@ -11,14 +34,8 @@ class SQLInterviewRepository:
         if not self.db:
             return None
         try:
-            query = """
-                SELECT q.title, q.difficulty, q.expected_topics 
-                FROM interviews i 
-                JOIN questions q ON i.question_id = q.id 
-                WHERE i.id = :session_id
-            """
             with self.db._engine.connect() as conn:
-                result = conn.execute(text(query), {"session_id": session_id})
+                result = conn.execute(text(GET_INTERVIEW_CONTEXT_QUERY), {"session_id": session_id})
                 row = result.fetchone()
                 if row:
                     return {
@@ -34,11 +51,9 @@ class SQLInterviewRepository:
         if not self.db:
             return None
         try:
-            query_nodes = "SELECT id, type, label FROM diagram_nodes WHERE interview_id = :session_id"
-            query_edges = "SELECT id, source, target, type FROM diagram_edges WHERE interview_id = :session_id"
             with self.db._engine.connect() as conn:
-                nodes_res = conn.execute(text(query_nodes), {"session_id": session_id})
-                edges_res = conn.execute(text(query_edges), {"session_id": session_id})
+                nodes_res = conn.execute(text(GET_DIAGRAM_NODES_QUERY), {"session_id": session_id})
+                edges_res = conn.execute(text(GET_DIAGRAM_EDGES_QUERY), {"session_id": session_id})
                 nodes = [{"id": r[0], "type": r[1], "label": r[2]} for r in nodes_res.fetchall()]
                 edges = [{"id": r[0], "source": r[1], "target": r[2], "type": r[3]} for r in edges_res.fetchall()]
                 return {"nodes": nodes, "edges": edges}
@@ -49,14 +64,9 @@ class SQLInterviewRepository:
     def save_evaluation_report(self, session_id: str, score: int, feedback: Dict[str, Any]) -> None:
         if not self.db:
             return
-        query = """
-            UPDATE interviews 
-            SET score = :score, ended_at = NOW(), feedback = :feedback 
-            WHERE id = :session_id
-        """
         with self.db._engine.begin() as conn:
             conn.execute(
-                text(query),
+                text(SAVE_EVALUATION_REPORT_QUERY),
                 {
                     "score": score,
                     "feedback": json.dumps(feedback),
@@ -67,15 +77,10 @@ class SQLInterviewRepository:
     def save_evaluation_error(self, session_id: str, error_message: str) -> None:
         if not self.db:
             return
-        query = """
-            UPDATE interviews 
-            SET score = -1, ended_at = NOW(), feedback = :feedback 
-            WHERE id = :session_id
-        """
         error_payload = {"error": f"Evaluation failed: {error_message}"}
         with self.db._engine.begin() as conn:
             conn.execute(
-                text(query),
+                text(SAVE_EVALUATION_ERROR_QUERY),
                 {
                     "feedback": json.dumps(error_payload),
                     "session_id": session_id
