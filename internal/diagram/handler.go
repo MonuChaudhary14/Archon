@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/MonuChaudhary14/Archon/internal/auth"
 )
 
 type Handler struct {
@@ -33,18 +34,10 @@ func NewHandler(repo Repository, verifyOwner func(ctx context.Context, userID in
 // @Failure      500 {object} map[string]string "{"error": "..."}"
 // @Router       /api/v1/interviews/{id}/diagram [get]
 func (h *Handler) GetDiagram(c *gin.Context) {
-	userIDVal, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized: user ID not found in context"})
-		return
-	}
-
-	userIDUint, ok := userIDVal.(uint)
+	userID, ok := auth.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error: invalid user ID format"})
 		return
 	}
-	userID := int(userIDUint)
 
 	interviewID := c.Param("id")
 	if interviewID == "" {

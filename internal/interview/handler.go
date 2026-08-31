@@ -4,6 +4,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strings"
+
+	"github.com/MonuChaudhary14/Archon/internal/auth"
 )
 
 type Handler struct {
@@ -43,18 +45,11 @@ func normalizeDifficulty(d string) (string, bool) {
 // @Failure      500 {object} map[string]string "{"error": "..."}"
 // @Router       /api/v1/interviews/start [post]
 func (h *Handler) StartInterview(c *gin.Context) {
-	userIDVal, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized: user ID not found in context"})
+	userID, ok := auth.GetUserID(c)
+	if !ok {
 		return
 	}
 
-	userIDUint, ok := userIDVal.(uint)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error: invalid user ID format"})
-		return
-	}
-	userID := int(userIDUint)
 
 	var req CreateInterviewRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -115,18 +110,10 @@ func (h *Handler) ListQuestions(c *gin.Context) {
 // @Failure      404 {object} map[string]string "{"error": "..."}"
 // @Router       /api/v1/interviews/{id}/report [get]
 func (h *Handler) GetInterviewReport(c *gin.Context) {
-	userIDVal, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized: user ID not found in context"})
-		return
-	}
-
-	userIDUint, ok := userIDVal.(uint)
+	userID, ok := auth.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error: invalid user ID format"})
 		return
 	}
-	userID := int(userIDUint)
 
 	interviewID := c.Param("id")
 	if interviewID == "" {
@@ -167,18 +154,10 @@ func (h *Handler) GetInterviewReport(c *gin.Context) {
 // @Failure      404 {object} map[string]string "{"error": "..."}"
 // @Router       /api/v1/interviews/{id}/submit [post]
 func (h *Handler) SubmitInterview(c *gin.Context) {
-	userIDVal, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized: user ID not found in context"})
-		return
-	}
-
-	userIDUint, ok := userIDVal.(uint)
+	userID, ok := auth.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error: invalid user ID format"})
 		return
 	}
-	userID := int(userIDUint)
 
 	interviewID := c.Param("id")
 	if interviewID == "" {
@@ -206,18 +185,10 @@ func (h *Handler) SubmitInterview(c *gin.Context) {
 // @Failure      500 {object} map[string]string "{"error": "..."}"
 // @Router       /api/v1/interviews [get]
 func (h *Handler) ListInterviews(c *gin.Context) {
-	userIDVal, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized: user ID not found in context"})
-		return
-	}
-
-	userIDUint, ok := userIDVal.(uint)
+	userID, ok := auth.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error: invalid user ID format"})
 		return
 	}
-	userID := int(userIDUint)
 
 	interviews, err := h.service.GetInterviewsByUserID(c.Request.Context(), userID)
 	if err != nil {

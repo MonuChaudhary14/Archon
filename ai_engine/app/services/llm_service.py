@@ -1,7 +1,7 @@
 from langchain_groq import ChatGroq
 from app.core.config import settings
 from langchain_community.utilities.sql_database import SQLDatabase
-from langchain_community.chat_message_histories.redis import RedisChatMessageHistory
+from app.core.helpers import get_message_history, get_interview_context
 import json
 import re
 import redis
@@ -53,7 +53,8 @@ class LLMService:
             asyncio.create_task(self.eval_service.evaluate_session(session_id))
 
     def get_message_history(self, session_id: str):
-        return RedisChatMessageHistory(session_id, url=settings.REDIS_URL)
+        return get_message_history(session_id)
+
 
     def _parse_json_response(self, content: str):
         content = content.strip()
@@ -68,28 +69,7 @@ class LLMService:
             return None
 
     def get_interview_context(self, session_id: str):
-        if not self.db:
-            return None
-        try:
-            from sqlalchemy import text
-            query = """
-                SELECT q.title, q.difficulty, q.expected_topics 
-                FROM interviews i 
-                JOIN questions q ON i.question_id = q.id 
-                WHERE i.id = :session_id
-            """
-            with self.db._engine.connect() as conn:
-                result = conn.execute(text(query), {"session_id": session_id})
-                row = result.fetchone()
-                if row:
-                    return {
-                        "title": row[0],
-                        "difficulty": row[1],
-                        "expected_topics": row[2]
-                    }
-        except Exception as e:
-            print(f"Error fetching interview context: {e}")
-        return None
+        return get_interview_context(self.db, session_id)
 
     def get_question_details(self, question_id: str):
         if not self.db:

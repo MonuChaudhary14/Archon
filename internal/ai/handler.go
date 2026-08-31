@@ -80,18 +80,10 @@ func ChatHandler(
 			return
 		}
 
-		userIDVal, exists := c.Get("userID")
-		if !exists {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized: user ID not found in context"})
-			return
-		}
-
-		userIDUint, ok := userIDVal.(uint)
+		userID, ok := auth.GetUserID(c)
 		if !ok {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error: invalid user ID format"})
 			return
 		}
-		userID := int(userIDUint)
 
 		isOwner, err := verifyOwner(c.Request.Context(), userID, sessionID)
 		if err != nil || !isOwner {

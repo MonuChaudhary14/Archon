@@ -54,3 +54,19 @@ func AuthMiddleware(secret string, repo UserRepository) gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+func GetUserID(c *gin.Context) (int, bool) {
+	userIDVal, exists := c.Get(ContextUserIDKey)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized: user ID not found in context"})
+		return 0, false
+	}
+
+	userIDUint, ok := userIDVal.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error: invalid user ID format"})
+		return 0, false
+	}
+	return int(userIDUint), true
+}
+

@@ -8,6 +8,58 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+const (
+	getRandomUnansweredQuestionQuery = `
+		SELECT id, title, difficulty, expected_topics, time_limit_minutes, created_at 
+		FROM questions 
+		WHERE difficulty = $1 
+		AND id NOT IN (
+			SELECT question_id FROM interviews WHERE user_id = $2
+		)
+		ORDER BY RANDOM() LIMIT 1;
+	`
+	getQuestionsQuery = `
+		SELECT id, title, difficulty, expected_topics, time_limit_minutes, created_at 
+		FROM questions 
+		WHERE deleted_at IS NULL
+		ORDER BY title ASC;
+	`
+	getQuestionByIDQuery = `
+		SELECT id, title, difficulty, expected_topics, time_limit_minutes, created_at 
+		FROM questions 
+		WHERE id = $1 AND deleted_at IS NULL;
+	`
+	insertInterviewQuery = `
+		INSERT INTO interviews (user_id, question_id) 
+		VALUES ($1, $2) 
+		RETURNING id;
+	`
+	insertOutboxStartedQuery = `
+		INSERT INTO outbox_events (aggregate_type, aggregate_id, type, payload)
+		VALUES ('Interview', $1, 'INTERVIEW_STARTED', $2);
+	`
+	insertOutboxSubmittedQuery = `
+		INSERT INTO outbox_events (aggregate_type, aggregate_id, type, payload)
+		VALUES ('Interview', $1, 'INTERVIEW_SUBMITTED', $2);
+	`
+	getInterviewByIDQuery = `
+		SELECT id, user_id, question_id, score, feedback, started_at, ended_at 
+		FROM interviews 
+		WHERE id = $1 AND user_id = $2;
+	`
+	submitInterviewQuery = `
+		UPDATE interviews 
+		SET ended_at = NOW() 
+		WHERE id = $1 AND user_id = $2 AND ended_at IS NULL;
+	`
+	getInterviewsByUserIDQuery = `
+		SELECT id, user_id, question_id, score, feedback, started_at, ended_at 
+		FROM interviews 
+		WHERE user_id = $1 AND deleted_at IS NULL
+		ORDER BY started_at DESC;
+	`
+)
+
 type postgresRepository struct {
 	db *pgxpool.Pool
 }
@@ -17,18 +69,8 @@ func NewRepository(db *pgxpool.Pool) Repository {
 }
 
 func (r *postgresRepository) GetRandomUnansweredQuestion(ctx context.Context, userID int, difficulty string) (*Question, error) {
-	query := `
-		SELECT id, title, difficulty, expected_topics, time_limit_minutes, created_at 
-		FROM questions 
-		WHERE difficulty = $1 
-		AND id NOT IN (
-			SELECT question_id FROM interviews WHERE user_id = $2
-		)
-		ORDER BY RANDOM() LIMIT 1;
-	`
-
 	var q Question
-	err := r.db.QueryRow(ctx, query, difficulty, userID).Scan(
+	err := r.db.QueryRow(ctx, getRandomUnansweredQuestionQuery, difficulty, userID).Scan(
 		&q.ID, &q.Title, &q.Difficulty, &q.ExpectedTopics, &q.TimeLimitMinutes, &q.CreatedAt,
 	)
 
@@ -39,13 +81,7 @@ func (r *postgresRepository) GetRandomUnansweredQuestion(ctx context.Context, us
 }
 
 func (r *postgresRepository) GetQuestions(ctx context.Context) ([]*Question, error) {
-	query := `
-		SELECT id, title, difficulty, expected_topics, time_limit_minutes, created_at 
-		FROM questions 
-		WHERE deleted_at IS NULL
-		ORDER BY title ASC;
-	`
-	rows, err := r.db.Query(ctx, query)
+	rows, err := r.db.Query(ctx, getQuestionsQuery)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch questions: %w", err)
 	}
@@ -70,13 +106,8 @@ func (r *postgresRepository) GetQuestions(ctx context.Context) ([]*Question, err
 }
 
 func (r *postgresRepository) GetQuestionByID(ctx context.Context, id string) (*Question, error) {
-	query := `
-		SELECT id, title, difficulty, expected_topics, time_limit_minutes, created_at 
-		FROM questions 
-		WHERE id = $1 AND deleted_at IS NULL;
-	`
 	var q Question
-	err := r.db.QueryRow(ctx, query, id).Scan(
+	err := r.db.QueryRow(ctx, getQuestionByIDQuery, id).Scan(
 		&q.ID, &q.Title, &q.Difficulty, &q.ExpectedTopics, &q.TimeLimitMinutes, &q.CreatedAt,
 	)
 	if err != nil {
@@ -96,12 +127,6 @@ func (r *postgresRepository) CreateInterview(ctx context.Context, userID int, qu
 	defer func() {
 		_ = tx.Rollback(ctx)
 	}()
-
-	insertInterviewQuery := `
-		INSERT INTO interviews (user_id, question_id) 
-		VALUES ($1, $2) 
-		RETURNING id;
-	`
 
 	var interviewID string
 
@@ -123,12 +148,7 @@ func (r *postgresRepository) CreateInterview(ctx context.Context, userID int, qu
 		return "", fmt.Errorf("failed to marshal outbox payload: %w", err)
 	}
 
-	insertOutboxQuery := `
-		INSERT INTO outbox_events (aggregate_type, aggregate_id, type, payload)
-		VALUES ('Interview', $1, 'INTERVIEW_STARTED', $2)
-	`
-
-	_, err = tx.Exec(ctx, insertOutboxQuery, interviewID, payloadBytes)
+	_, err = tx.Exec(ctx, insertOutboxStartedQuery, interviewID, payloadBytes)
 
 	if err != nil {
 		return "", fmt.Errorf("failed to insert outbox event: %w", err)
@@ -142,13 +162,8 @@ func (r *postgresRepository) CreateInterview(ctx context.Context, userID int, qu
 }
 
 func (r *postgresRepository) GetInterviewByID(ctx context.Context, userID int, interviewID string) (*Interview, error) {
-	query := `
-		SELECT id, user_id, question_id, score, feedback, started_at, ended_at 
-		FROM interviews 
-		WHERE id = $1 AND user_id = $2;
-	`
 	var i Interview
-	err := r.db.QueryRow(ctx, query, interviewID, userID).Scan(
+	err := r.db.QueryRow(ctx, getInterviewByIDQuery, interviewID, userID).Scan(
 		&i.ID, &i.UserID, &i.QuestionID, &i.Score, &i.Feedback, &i.StartedAt, &i.EndedAt,
 	)
 	if err != nil {
@@ -166,12 +181,7 @@ func (r *postgresRepository) SubmitInterview(ctx context.Context, userID int, in
 		_ = tx.Rollback(ctx)
 	}()
 
-	updateQuery := `
-		UPDATE interviews 
-		SET ended_at = NOW() 
-		WHERE id = $1 AND user_id = $2 AND ended_at IS NULL;
-	`
-	res, err := tx.Exec(ctx, updateQuery, interviewID, userID)
+	res, err := tx.Exec(ctx, submitInterviewQuery, interviewID, userID)
 	if err != nil {
 		return fmt.Errorf("failed to update interview ended_at: %w", err)
 	}
@@ -189,11 +199,7 @@ func (r *postgresRepository) SubmitInterview(ctx context.Context, userID int, in
 		return fmt.Errorf("failed to marshal outbox payload: %w", err)
 	}
 
-	insertOutboxQuery := `
-		INSERT INTO outbox_events (aggregate_type, aggregate_id, type, payload)
-		VALUES ('Interview', $1, 'INTERVIEW_SUBMITTED', $2)
-	`
-	_, err = tx.Exec(ctx, insertOutboxQuery, interviewID, payloadBytes)
+	_, err = tx.Exec(ctx, insertOutboxSubmittedQuery, interviewID, payloadBytes)
 	if err != nil {
 		return fmt.Errorf("failed to insert outbox event: %w", err)
 	}
@@ -206,13 +212,7 @@ func (r *postgresRepository) SubmitInterview(ctx context.Context, userID int, in
 }
 
 func (r *postgresRepository) GetInterviewsByUserID(ctx context.Context, userID int) ([]*Interview, error) {
-	query := `
-		SELECT id, user_id, question_id, score, feedback, started_at, ended_at 
-		FROM interviews 
-		WHERE user_id = $1 AND deleted_at IS NULL
-		ORDER BY started_at DESC;
-	`
-	rows, err := r.db.Query(ctx, query, userID)
+	rows, err := r.db.Query(ctx, getInterviewsByUserIDQuery, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch interviews: %w", err)
 	}
