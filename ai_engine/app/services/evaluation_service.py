@@ -141,31 +141,7 @@ class EvaluationService:
 
             parsed = self._parse_json_response(output)
             if not parsed:
-                parsed = {
-                    "overall_score": 70,
-                    "requirements_score": 3,
-                    "requirements_feedback": "Needs to spend more time gathering requirements.",
-                    "estimation_score": 3,
-                    "estimation_feedback": "Calculations were partially complete.",
-                    "high_level_score": 4,
-                    "high_level_feedback": "Correctly identified basic database and application components.",
-                    "deep_dive_score": 3,
-                    "deep_dive_feedback": "Could have gone deeper into partition strategies.",
-                    "summary_strengths": "Good understanding of core high level blocks.",
-                    "summary_weaknesses": "Needs practice with capacity estimation and sharding.",
-                    "personalized_learning_path": [
-                        {
-                            "topic": "Capacity Estimation",
-                            "reason": "Ensure you calculate QPS and memory constraints accurately for distributed stores.",
-                            "resources": ["Designing Data-Intensive Applications", "System Design Primer"]
-                        },
-                        {
-                            "topic": "Database Partitioning",
-                            "reason": "Need to understand horizontal sharding vs vertical splitting for scale.",
-                            "resources": ["High Performance MySQL", "DDIA Book - Chapter 6"]
-                        }
-                    ]
-                }
+                raise ValueError("LLM generated response was not in the expected JSON format")
 
             overall_score = parsed.get("overall_score", 70)
 
@@ -190,3 +166,23 @@ class EvaluationService:
 
         except Exception as e:
             print(f"Failed to run evaluation for session {session_id}: {e}")
+            if self.db:
+                try:
+                    from sqlalchemy import text
+                    query = """
+                        UPDATE interviews 
+                        SET score = -1, ended_at = NOW(), feedback = :feedback 
+                        WHERE id = :session_id
+                    """
+                    error_payload = {"error": f"Evaluation failed: {str(e)}"}
+                    with self.db._engine.begin() as conn:
+                        conn.execute(
+                            text(query),
+                            {
+                                "feedback": json.dumps(error_payload),
+                                "session_id": session_id
+                            }
+                        )
+                    print(f"Successfully saved error status for session: {session_id}")
+                except Exception as db_err:
+                    print(f"Failed to save error status to database: {db_err}")

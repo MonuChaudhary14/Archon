@@ -145,6 +145,11 @@ func (h *Handler) GetInterviewReport(c *gin.Context) {
 		return
 	}
 
+	if *interview.Score == -1 {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "evaluation failed", "details": interview.Feedback})
+		return
+	}
+
 	c.JSON(http.StatusOK, interview)
 }
 
