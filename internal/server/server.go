@@ -84,6 +84,7 @@ func NewServer(cfg *config.Config) (*Server, error) {
 
 	interviewGroup := router.Group("/api/v1/interviews")
 	interviewGroup.Use(auth.AuthMiddleware(jwtSecret, userRepo))
+	interviewGroup.GET("", interviewHandler.ListInterviews)
 	interviewGroup.POST("/start", interviewHandler.StartInterview)
 	interviewGroup.GET("/questions", interviewHandler.ListQuestions)
 	interviewGroup.GET("/:id/report", interviewHandler.GetInterviewReport)

@@ -204,3 +204,35 @@ func (r *postgresRepository) SubmitInterview(ctx context.Context, userID int, in
 
 	return nil
 }
+
+func (r *postgresRepository) GetInterviewsByUserID(ctx context.Context, userID int) ([]*Interview, error) {
+	query := `
+		SELECT id, user_id, question_id, score, feedback, started_at, ended_at 
+		FROM interviews 
+		WHERE user_id = $1 AND deleted_at IS NULL
+		ORDER BY started_at DESC;
+	`
+	rows, err := r.db.Query(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch interviews: %w", err)
+	}
+	defer rows.Close()
+
+	var interviews []*Interview
+	for rows.Next() {
+		var i Interview
+		err := rows.Scan(
+			&i.ID, &i.UserID, &i.QuestionID, &i.Score, &i.Feedback, &i.StartedAt, &i.EndedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan interview: %w", err)
+		}
+		interviews = append(interviews, &i)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error reading interview rows: %w", err)
+	}
+
+	return interviews, nil
+}
+

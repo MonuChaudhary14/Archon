@@ -189,3 +189,37 @@ func (h *Handler) SubmitInterview(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "interview submitted successfully"})
 }
+
+// ListInterviews godoc
+// @Summary      List all interviews for the authenticated user
+// @Description  Retrieves all past and current system design interview sessions for the user.
+// @Tags         interviews
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {array} Interview
+// @Failure      401 {object} map[string]string "{"error": "..."}"
+// @Failure      500 {object} map[string]string "{"error": "..."}"
+// @Router       /api/v1/interviews [get]
+func (h *Handler) ListInterviews(c *gin.Context) {
+	userIDVal, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized: user ID not found in context"})
+		return
+	}
+
+	userIDUint, ok := userIDVal.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error: invalid user ID format"})
+		return
+	}
+	userID := int(userIDUint)
+
+	interviews, err := h.service.GetInterviewsByUserID(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, interviews)
+}
+

@@ -51,3 +51,8 @@ func (s *service) GetInterviewByID(ctx context.Context, userID int, interviewID 
 func (s *service) SubmitInterview(ctx context.Context, userID int, interviewID string) error {
 	return s.repo.SubmitInterview(ctx, userID, interviewID)
 }
+
+func (s *service) GetInterviewsByUserID(ctx context.Context, userID int) ([]*Interview, error) {
+	return s.repo.GetInterviewsByUserID(ctx, userID)
+}
+

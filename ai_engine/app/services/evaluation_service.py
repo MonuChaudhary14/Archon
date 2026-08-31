@@ -109,7 +109,8 @@ class EvaluationService:
             f"4. Detailed Design & Scaling (resolving hotspots, partition keys, CDNs, caching policies)\n\n"
             f"For each dimension, assign a score from 1 (poor) to 5 (excellent) and write a short, constructive paragraph of feedback (2-3 sentences).\n"
             f"Calculate an overall score out of 100 (weighted average of the dimensions, scaled to 100).\n"
-            f"Provide a summary of their performance, listing their main strengths and areas for improvement.\n\n"
+            f"Provide a summary of their performance, listing their main strengths and areas for improvement.\n"
+            f"Based on their weaknesses, recommend a personalized learning path containing system design topics, study reasons, and references.\n\n"
             f"You MUST output your response as a valid JSON object with the following structure:\n"
             f"{{\n"
             f'  "overall_score": 0-100 (integer),\n'
@@ -122,7 +123,14 @@ class EvaluationService:
             f'  "deep_dive_score": 1-5 (integer),\n'
             f'  "deep_dive_feedback": "string",\n'
             f'  "summary_strengths": "string",\n'
-            f'  "summary_weaknesses": "string"\n'
+            f'  "summary_weaknesses": "string",\n'
+            f'  "personalized_learning_path": [\n'
+            f'    {{\n'
+            f'      "topic": "string",\n'
+            f'      "reason": "string",\n'
+            f'      "resources": ["string"]\n'
+            f'    }}\n'
+            f'  ]\n'
             f"}}\n"
             f"Ensure the JSON output is well-formed. Do not wrap the JSON output in markdown formatting or code blocks."
         )
@@ -144,7 +152,19 @@ class EvaluationService:
                     "deep_dive_score": 3,
                     "deep_dive_feedback": "Could have gone deeper into partition strategies.",
                     "summary_strengths": "Good understanding of core high level blocks.",
-                    "summary_weaknesses": "Needs practice with capacity estimation and sharding."
+                    "summary_weaknesses": "Needs practice with capacity estimation and sharding.",
+                    "personalized_learning_path": [
+                        {
+                            "topic": "Capacity Estimation",
+                            "reason": "Ensure you calculate QPS and memory constraints accurately for distributed stores.",
+                            "resources": ["Designing Data-Intensive Applications", "System Design Primer"]
+                        },
+                        {
+                            "topic": "Database Partitioning",
+                            "reason": "Need to understand horizontal sharding vs vertical splitting for scale.",
+                            "resources": ["High Performance MySQL", "DDIA Book - Chapter 6"]
+                        }
+                    ]
                 }
 
             overall_score = parsed.get("overall_score", 70)

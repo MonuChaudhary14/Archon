@@ -246,6 +246,36 @@ paths:
       summary: Connect to AI Chat WebSocket session
       tags:
       - ai
+  /api/v1/interviews:
+    get:
+      description: Retrieves all past and current system design interview sessions
+        for the user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/internal_interview.Interview'
+            type: array
+        "401":
+          description: '{"error": "..."}'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: '{"error": "..."}'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List all interviews for the authenticated user
+      tags:
+      - interviews
   /api/v1/interviews/{id}/diagram:
     get:
       description: Retrieves the diagram nodes and edges for a specific interview
