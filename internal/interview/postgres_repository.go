@@ -235,4 +235,3 @@ func (r *postgresRepository) GetInterviewsByUserID(ctx context.Context, userID i
 
 	return interviews, nil
 }
-

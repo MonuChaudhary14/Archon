@@ -53,7 +53,7 @@ func Setup(
 	go kafkaSvc.StartConsuming()
 
 	historyRepo := NewRedisHistoryRepository(redisClient)
-	processor := NewSessionProcessor(kafkaSvc, historyRepo, diagRepo, hub)
+	processor := NewSessionProcessor(kafkaSvc, kafkaSvc, historyRepo, diagRepo, hub)
 
 	router.GET("/ai/chat", auth.AuthMiddleware(jwtSecret, userRepo), ChatHandler(processor, verifyOwner))
 

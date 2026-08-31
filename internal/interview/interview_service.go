@@ -55,4 +55,3 @@ func (s *service) SubmitInterview(ctx context.Context, userID int, interviewID s
 func (s *service) GetInterviewsByUserID(ctx context.Context, userID int) ([]*Interview, error) {
 	return s.repo.GetInterviewsByUserID(ctx, userID)
 }
-

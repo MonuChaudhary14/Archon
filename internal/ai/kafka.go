@@ -12,10 +12,9 @@ import (
 )
 
 type KafkaService struct {
-	writer        *kafka.Writer
-	diagramWriter *kafka.Writer
-	reader        *kafka.Reader
-	hub           ConnectionHub
+	writer *kafka.Writer
+	reader *kafka.Reader
+	hub    ConnectionHub
 }
 
 type AIResponse struct {
@@ -34,13 +33,6 @@ func NewKafkaService(hub ConnectionHub) *KafkaService {
 
 	writer := &kafka.Writer{
 		Addr:     kafka.TCP(brokers...),
-		Topic:    "ai.requests",
-		Balancer: &kafka.LeastBytes{},
-	}
-
-	diagramWriter := &kafka.Writer{
-		Addr:     kafka.TCP(brokers...),
-		Topic:    "diagram.events",
 		Balancer: &kafka.LeastBytes{},
 	}
 
@@ -57,12 +49,10 @@ func NewKafkaService(hub ConnectionHub) *KafkaService {
 	})
 
 	return &KafkaService{
-		writer:        writer,
-		diagramWriter: diagramWriter,
-		reader:        reader,
-		hub:           hub,
+		writer: writer,
+		reader: reader,
+		hub:    hub,
 	}
-
 }
 
 func (k *KafkaService) PublishPrompt(sessionID, prompt string) error {
@@ -73,6 +63,7 @@ func (k *KafkaService) PublishPrompt(sessionID, prompt string) error {
 	bytes, _ := json.Marshal(payload)
 	return k.writer.WriteMessages(context.Background(),
 		kafka.Message{
+			Topic: "ai.requests",
 			Key:   []byte(sessionID),
 			Value: bytes,
 		},
@@ -103,9 +94,10 @@ func (k *KafkaService) StartConsuming() {
 	}
 }
 
-func (k *KafkaService) PublishEvent(ctx context.Context, key []byte, payload []byte) error {
+func (k *KafkaService) PublishEvent(ctx context.Context, topic string, key []byte, payload []byte) error {
 	return k.writer.WriteMessages(ctx,
 		kafka.Message{
+			Topic: topic,
 			Key:   key,
 			Value: payload,
 		},
@@ -122,8 +114,9 @@ func (k *KafkaService) PublishDiagramEvent(sessionID, eventType string, data jso
 	if err != nil {
 		return fmt.Errorf("failed to marshal diagram event payload: %w", err)
 	}
-	return k.diagramWriter.WriteMessages(context.Background(),
+	return k.writer.WriteMessages(context.Background(),
 		kafka.Message{
+			Topic: "diagram.events",
 			Key:   []byte(sessionID),
 			Value: bytes,
 		},

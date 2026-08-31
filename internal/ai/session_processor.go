@@ -19,15 +19,17 @@ type SessionProcessor interface {
 }
 
 type sessionProcessor struct {
-	broker       MessageBroker
+	promptPub    PromptPublisher
+	diagramPub   DiagramEventPublisher
 	historyStore ChatHistoryRepository
 	diagRepo     diagram.Repository
 	hub          ConnectionHub
 }
 
-func NewSessionProcessor(broker MessageBroker, historyStore ChatHistoryRepository, diagRepo diagram.Repository, hub ConnectionHub) SessionProcessor {
+func NewSessionProcessor(promptPub PromptPublisher, diagramPub DiagramEventPublisher, historyStore ChatHistoryRepository, diagRepo diagram.Repository, hub ConnectionHub) SessionProcessor {
 	return &sessionProcessor{
-		broker:       broker,
+		promptPub:    promptPub,
+		diagramPub:   diagramPub,
 		historyStore: historyStore,
 		diagRepo:     diagRepo,
 		hub:          hub,
@@ -38,7 +40,6 @@ func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string,
 	p.hub.Register(sessionID, conn)
 	defer p.hub.Unregister(sessionID)
 
-	// Fetch and send message history
 	history, err := p.historyStore.GetChatHistory(ctx, sessionID)
 	if err == nil {
 		for _, msgStr := range history {
@@ -46,11 +47,12 @@ func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string,
 			if err := json.Unmarshal([]byte(msgStr), &msgMap); err == nil {
 				var role string
 				msgType, _ := msgMap["type"].(string)
-				if msgType == "human" {
+				switch msgType {
+				case "human":
 					role = "user"
-				} else if msgType == "ai" {
+				case "ai":
 					role = "ai"
-				} else {
+				default:
 					continue
 				}
 
@@ -70,7 +72,6 @@ func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string,
 		}
 	}
 
-	// Message read loop
 	for {
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
@@ -79,7 +80,7 @@ func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string,
 
 		var wsMsg WSMessage
 		if err := json.Unmarshal(msg, &wsMsg); err != nil {
-			if err := p.broker.PublishPrompt(sessionID, string(msg)); err != nil {
+			if err := p.promptPub.PublishPrompt(sessionID, string(msg)); err != nil {
 				_ = conn.WriteMessage(websocket.TextMessage, []byte("Error sending message to processing queue"))
 			}
 			continue
@@ -100,7 +101,7 @@ func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string,
 					prompt = string(wsMsg.Data)
 				}
 			}
-			if err := p.broker.PublishPrompt(sessionID, prompt); err != nil {
+			if err := p.promptPub.PublishPrompt(sessionID, prompt); err != nil {
 				_ = conn.WriteMessage(websocket.TextMessage, []byte("Error sending message to processing queue"))
 			}
 
@@ -112,7 +113,7 @@ func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string,
 					log.Printf("Failed to save node: %v", err)
 					_ = conn.WriteMessage(websocket.TextMessage, []byte("Error saving diagram node"))
 				} else {
-					if err := p.broker.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data); err != nil {
+					if err := p.diagramPub.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data); err != nil {
 						log.Printf("Failed to publish diagram event: %v", err)
 					}
 				}
@@ -129,7 +130,7 @@ func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string,
 					log.Printf("Failed to delete node: %v", err)
 					_ = conn.WriteMessage(websocket.TextMessage, []byte("Error deleting diagram node"))
 				} else {
-					if err := p.broker.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data); err != nil {
+					if err := p.diagramPub.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data); err != nil {
 						log.Printf("Failed to publish diagram event: %v", err)
 					}
 				}
@@ -143,7 +144,7 @@ func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string,
 					log.Printf("Failed to save edge: %v", err)
 					_ = conn.WriteMessage(websocket.TextMessage, []byte("Error saving diagram edge"))
 				} else {
-					if err := p.broker.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data); err != nil {
+					if err := p.diagramPub.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data); err != nil {
 						log.Printf("Failed to publish diagram event: %v", err)
 					}
 				}
@@ -158,7 +159,7 @@ func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string,
 					log.Printf("Failed to delete edge: %v", err)
 					_ = conn.WriteMessage(websocket.TextMessage, []byte("Error deleting diagram edge"))
 				} else {
-					if err := p.broker.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data); err != nil {
+					if err := p.diagramPub.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data); err != nil {
 						log.Printf("Failed to publish diagram event: %v", err)
 					}
 				}

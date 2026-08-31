@@ -9,7 +9,7 @@ import (
 )
 
 type MessagePublisher interface {
-	PublishEvent(ctx context.Context, key []byte, payload []byte) error
+	PublishEvent(ctx context.Context, topic string, key []byte, payload []byte) error
 }
 
 type OutboxWorker struct {
@@ -41,6 +41,15 @@ func (w *OutboxWorker) Start(ctx context.Context) {
 	}
 }
 
+func getTopicForEvent(eventType string) string {
+	switch eventType {
+	case "INTERVIEW_STARTED", "INTERVIEW_SUBMITTED":
+		return "ai.requests"
+	default:
+		return "ai.requests"
+	}
+}
+
 func (w *OutboxWorker) processPendingEvents(ctx context.Context) {
 	tx, err := w.db.Begin(ctx)
 	if err != nil {
@@ -52,7 +61,7 @@ func (w *OutboxWorker) processPendingEvents(ctx context.Context) {
 	}()
 
 	query := `
-		SELECT id, aggregate_id, payload, retries 
+		SELECT id, aggregate_id, type, payload, retries 
 		FROM outbox_events 
 		WHERE status = 'PENDING' 
 		ORDER BY created_at ASC 
@@ -69,6 +78,7 @@ func (w *OutboxWorker) processPendingEvents(ctx context.Context) {
 	type outboxEvent struct {
 		id          string
 		aggregateID string
+		eventType   string
 		payload     []byte
 		retries     int
 	}
@@ -76,7 +86,7 @@ func (w *OutboxWorker) processPendingEvents(ctx context.Context) {
 	var events []outboxEvent
 	for rows.Next() {
 		var ev outboxEvent
-		if err := rows.Scan(&ev.id, &ev.aggregateID, &ev.payload, &ev.retries); err != nil {
+		if err := rows.Scan(&ev.id, &ev.aggregateID, &ev.eventType, &ev.payload, &ev.retries); err != nil {
 			log.Printf("Outbox worker failed to scan event: %v", err)
 			continue
 		}
@@ -86,7 +96,8 @@ func (w *OutboxWorker) processPendingEvents(ctx context.Context) {
 
 	for _, ev := range events {
 		pubCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		err = w.publisher.PublishEvent(pubCtx, []byte(ev.aggregateID), ev.payload)
+		topic := getTopicForEvent(ev.eventType)
+		err = w.publisher.PublishEvent(pubCtx, topic, []byte(ev.aggregateID), ev.payload)
 		cancel()
 
 		if err != nil {

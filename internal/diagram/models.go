@@ -21,4 +21,3 @@ type DiagramResponse struct {
 	Nodes []Node `json:"nodes"`
 	Edges []Edge `json:"edges"`
 }
-

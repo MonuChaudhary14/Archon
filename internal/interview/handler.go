@@ -50,7 +50,6 @@ func (h *Handler) StartInterview(c *gin.Context) {
 		return
 	}
 
-
 	var req CreateInterviewRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request, 'difficulty' is required"})
@@ -198,4 +197,3 @@ func (h *Handler) ListInterviews(c *gin.Context) {
 
 	c.JSON(http.StatusOK, interviews)
 }
-

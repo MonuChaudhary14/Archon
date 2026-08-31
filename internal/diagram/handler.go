@@ -4,8 +4,8 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	"github.com/MonuChaudhary14/Archon/internal/auth"
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {

@@ -1,35 +1,15 @@
 import json
 import re
-from langchain_groq import ChatGroq
-from app.core.config import settings
-from app.core.helpers import get_message_history, get_interview_context
-from langchain_community.utilities.sql_database import SQLDatabase
+from app.core.helpers import get_message_history
+from app.core.interfaces import LLMClient, InterviewRepository
 
 class EvaluationService:
-    def __init__(self, llm: ChatGroq, db: SQLDatabase):
+    def __init__(self, llm: LLMClient, repo: InterviewRepository):
         self.llm = llm
-        self.db = db
+        self.repo = repo
 
     def get_message_history(self, session_id: str):
         return get_message_history(session_id)
-
-
-    def get_diagram_context(self, session_id: str):
-        if not self.db:
-            return None
-        try:
-            from sqlalchemy import text
-            query_nodes = "SELECT id, type, label FROM diagram_nodes WHERE interview_id = :session_id"
-            query_edges = "SELECT id, source, target, type FROM diagram_edges WHERE interview_id = :session_id"
-            with self.db._engine.connect() as conn:
-                nodes_res = conn.execute(text(query_nodes), {"session_id": session_id})
-                edges_res = conn.execute(text(query_edges), {"session_id": session_id})
-                nodes = [{"id": r[0], "type": r[1], "label": r[2]} for r in nodes_res.fetchall()]
-                edges = [{"id": r[0], "source": r[1], "target": r[2], "type": r[3]} for r in edges_res.fetchall()]
-                return {"nodes": nodes, "edges": edges}
-        except Exception as e:
-            print(f"Error fetching diagram context in evaluation: {e}")
-        return None
 
     def _parse_json_response(self, content: str):
         content = content.strip()
@@ -43,13 +23,10 @@ class EvaluationService:
             print(f"Evaluation JSON parsing error: {e}. Content was: {content}")
             return None
 
-    def get_interview_context(self, session_id: str):
-        return get_interview_context(self.db, session_id)
-
     async def evaluate_session(self, session_id: str):
         print(f"Starting background evaluation for session: {session_id}")
         
-        ctx = self.get_interview_context(session_id)
+        ctx = self.repo.get_interview_context(session_id)
         title = "System Design"
         difficulty = "Senior"
         expected_topics = []
@@ -69,7 +46,7 @@ class EvaluationService:
             transcript_list.append(f"{msg.type}: {msg.content}")
         transcript = "\n".join(transcript_list)
 
-        diagram_ctx = self.get_diagram_context(session_id)
+        diagram_ctx = self.repo.get_diagram_context(session_id)
         diagram_info = ""
         if diagram_ctx and (diagram_ctx["nodes"] or diagram_ctx["edges"]):
             diagram_info = f"\n\nHere is the candidate's final system design whiteboard diagram:\nNodes:\n{json.dumps(diagram_ctx['nodes'], indent=2)}\nEdges:\n{json.dumps(diagram_ctx['edges'], indent=2)}"
@@ -125,44 +102,13 @@ class EvaluationService:
 
             overall_score = parsed.get("overall_score", 70)
 
-            # 6. Save to PostgreSQL
-            if self.db:
-                from sqlalchemy import text
-                query = """
-                    UPDATE interviews 
-                    SET score = :score, ended_at = NOW(), feedback = :feedback 
-                    WHERE id = :session_id
-                """
-                with self.db._engine.begin() as conn:
-                    conn.execute(
-                        text(query),
-                        {
-                            "score": overall_score,
-                            "feedback": json.dumps(parsed),
-                            "session_id": session_id
-                        }
-                    )
-                print(f"Successfully saved evaluation report for session: {session_id}")
+            self.repo.save_evaluation_report(session_id, overall_score, parsed)
+            print(f"Successfully saved evaluation report for session: {session_id}")
 
         except Exception as e:
             print(f"Failed to run evaluation for session {session_id}: {e}")
-            if self.db:
-                try:
-                    from sqlalchemy import text
-                    query = """
-                        UPDATE interviews 
-                        SET score = -1, ended_at = NOW(), feedback = :feedback 
-                        WHERE id = :session_id
-                    """
-                    error_payload = {"error": f"Evaluation failed: {str(e)}"}
-                    with self.db._engine.begin() as conn:
-                        conn.execute(
-                            text(query),
-                            {
-                                "feedback": json.dumps(error_payload),
-                                "session_id": session_id
-                            }
-                        )
-                    print(f"Successfully saved error status for session: {session_id}")
-                except Exception as db_err:
-                    print(f"Failed to save error status to database: {db_err}")
+            try:
+                self.repo.save_evaluation_error(session_id, str(e))
+                print(f"Successfully saved error status for session: {session_id}")
+            except Exception as db_err:
+                print(f"Failed to save error status to database: {db_err}")

@@ -9,6 +9,7 @@ import asyncio
 from app.services.evaluation_service import EvaluationService
 from app.services.knowledge_service import KnowledgeService
 from app.services.diagram_service import DiagramService
+from app.services.interview_repository import SQLInterviewRepository
 
 class LLMService:
     def __init__(self):
@@ -27,7 +28,8 @@ class LLMService:
         if settings.REDIS_URL:
             self.redis_client = redis.from_url(settings.REDIS_URL)
 
-        self.eval_service = EvaluationService(self.llm, self.db)
+        self.repo = SQLInterviewRepository(self.db)
+        self.eval_service = EvaluationService(self.llm, self.repo)
         self.knowledge_service = KnowledgeService()
         self.diagram_service = DiagramService(self.llm)
         self.producer = None

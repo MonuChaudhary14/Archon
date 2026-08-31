@@ -103,7 +103,7 @@ func TestProcessSession(t *testing.T) {
 	diagRepo := &MockDiagramRepository{}
 	hub := &MockConnectionHub{}
 
-	processor := NewSessionProcessor(broker, history, diagRepo, hub)
+	processor := NewSessionProcessor(broker, broker, history, diagRepo, hub)
 
 	callCount := 0
 	ws := &MockWebSocketConnection{

@@ -17,10 +17,16 @@ type ConnectionHub interface {
 	SendMessage(sessionID string, message []byte) bool
 }
 
-type MessageBroker interface {
+type PromptPublisher interface {
 	PublishPrompt(sessionID, prompt string) error
+}
+
+type DiagramEventPublisher interface {
 	PublishDiagramEvent(sessionID, eventType string, data json.RawMessage) error
-	PublishEvent(ctx context.Context, key []byte, payload []byte) error
+}
+
+type DomainEventPublisher interface {
+	PublishEvent(ctx context.Context, topic string, key []byte, payload []byte) error
 }
 
 type ChatHistoryRepository interface {

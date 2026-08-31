@@ -69,4 +69,3 @@ func GetUserID(c *gin.Context) (int, bool) {
 	}
 	return int(userIDUint), true
 }
-
