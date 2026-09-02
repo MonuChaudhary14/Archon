@@ -15,6 +15,16 @@ func NewHandler(service Service) *Handler {
 	return &Handler{service: service}
 }
 
+// GetOverview godoc
+// @Summary      Get candidate dashboard overview
+// @Description  Aggregates metrics, recommended mock scenario, competency radar, recent interviews, and syllabus roadmap.
+// @Tags         dashboard
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} map[string]interface{} "{"success": true, "data": models.DashboardOverviewResponse}"
+// @Failure      401 {object} map[string]interface{} "{"success": false, "error": "unauthorized"}"
+// @Failure      500 {object} map[string]interface{} "{"success": false, "error": "..."}"
+// @Router       /api/v1/dashboard/overview [get]
 func (h *Handler) GetOverview(c *gin.Context) {
 	userID, ok := auth.GetUserID(c)
 	if !ok {

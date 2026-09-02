@@ -16,6 +16,16 @@ func NewHandler(service Service) *Handler {
 	return &Handler{service: service}
 }
 
+// GetSettings godoc
+// @Summary      Get candidate settings and preferences
+// @Description  Retrieves workspace, role target, AI interviewer persona, and canvas grid configuration.
+// @Tags         settings
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} map[string]interface{} "{"success": true, "data": models.UserSettings}"
+// @Failure      401 {object} map[string]interface{} "{"success": false, "error": "unauthorized"}"
+// @Failure      500 {object} map[string]interface{} "{"success": false, "error": "..."}"
+// @Router       /api/v1/settings [get]
 func (h *Handler) GetSettings(c *gin.Context) {
 	userID, ok := auth.GetUserID(c)
 	if !ok {
@@ -35,6 +45,19 @@ func (h *Handler) GetSettings(c *gin.Context) {
 	})
 }
 
+// UpdateSettings godoc
+// @Summary      Update candidate settings and preferences
+// @Description  Upserts workspace preferences, target companies, AI persona strictness, and canvas defaults.
+// @Tags         settings
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request body models.UserSettings true "Settings update payload"
+// @Success      200 {object} map[string]interface{} "{"success": true, "message": "Settings updated successfully"}"
+// @Failure      400 {object} map[string]interface{} "{"success": false, "error": "..."}"
+// @Failure      401 {object} map[string]interface{} "{"success": false, "error": "unauthorized"}"
+// @Failure      500 {object} map[string]interface{} "{"success": false, "error": "..."}"
+// @Router       /api/v1/settings [put]
 func (h *Handler) UpdateSettings(c *gin.Context) {
 	userID, ok := auth.GetUserID(c)
 	if !ok {

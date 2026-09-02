@@ -1,5 +1,65 @@
 basePath: /
 definitions:
+  github_com_MonuChaudhary14_Archon_internal_models.SubmitDeckQuizRequest:
+    properties:
+      answers:
+        additionalProperties:
+          type: string
+        type: object
+      time_spent_seconds:
+        type: integer
+    required:
+    - answers
+    type: object
+  github_com_MonuChaudhary14_Archon_internal_models.UserSettings:
+    properties:
+      auto_save_interval_seconds:
+        type: integer
+      canvas_grid_type:
+        type: string
+      email:
+        type: string
+      email_notifications:
+        type: boolean
+      enable_proactive_hints:
+        type: boolean
+      enable_voice_interview:
+        type: boolean
+      export_format:
+        type: string
+      feedback_style:
+        type: string
+      full_name:
+        type: string
+      interviewer_strictness:
+        type: string
+      primary_stack:
+        type: string
+      snap_to_grid:
+        type: boolean
+      target_companies:
+        items:
+          type: string
+        type: array
+      target_level:
+        type: string
+      weekly_interview_target:
+        type: integer
+      weekly_report_digest:
+        type: boolean
+      years_of_experience:
+        type: integer
+    type: object
+  github_com_MonuChaudhary14_Archon_internal_models.VerifyDailyChallengeRequest:
+    properties:
+      question_id:
+        type: string
+      selected_option_id:
+        type: string
+    required:
+    - question_id
+    - selected_option_id
+    type: object
   github_com_MonuChaudhary14_Archon_pkg_response.APIResponse:
     properties:
       data: {}
@@ -246,6 +306,65 @@ paths:
       summary: Connect to AI Chat WebSocket session
       tags:
       - ai
+  /api/v1/analytics:
+    get:
+      description: Retrieves score trajectory trends, domain benchmarks, 90-day activity
+        heatmaps, and pitfall insights over a given range.
+      parameters:
+      - description: 'Time range (7d, 30d, 90d, all, default: 30d)'
+        in: query
+        name: range
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"success": true, "data": models.AnalyticsResponse}'
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: '{"success": false, "error": "unauthorized"}'
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: '{"success": false, "error": "..."}'
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get candidate telemetry and analytics
+      tags:
+      - analytics
+  /api/v1/dashboard/overview:
+    get:
+      description: Aggregates metrics, recommended mock scenario, competency radar,
+        recent interviews, and syllabus roadmap.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"success": true, "data": models.DashboardOverviewResponse}'
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: '{"success": false, "error": "unauthorized"}'
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: '{"success": false, "error": "..."}'
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get candidate dashboard overview
+      tags:
+      - dashboard
   /api/v1/interviews:
     get:
       description: Retrieves all past and current system design interview sessions
@@ -484,6 +603,325 @@ paths:
       summary: Start a new system design interview
       tags:
       - interviews
+  /api/v1/quizzes/daily-challenge:
+    get:
+      description: Retrieves the active daily architecture challenge question without
+        revealing correct answer.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"success": true, "data": models.QuizQuestion}'
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: '{"success": false, "error": "..."}'
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get today's daily architecture challenge
+      tags:
+      - quizzes
+  /api/v1/quizzes/daily-challenge/verify:
+    post:
+      consumes:
+      - application/json
+      description: Verifies the candidate's selected option and returns the explanation
+        and correctness.
+      parameters:
+      - description: Challenge verification payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_MonuChaudhary14_Archon_internal_models.VerifyDailyChallengeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"success": true, "data": models.VerifyDailyChallengeResponse}'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: '{"success": false, "error": "..."}'
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: '{"success": false, "error": "..."}'
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Verify daily challenge answer
+      tags:
+      - quizzes
+  /api/v1/quizzes/decks:
+    get:
+      description: Retrieves available practice topic decks with candidate mastery
+        completion percentages.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"success": true, "data": []models.QuizDeckItem}'
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: '{"success": false, "error": "unauthorized"}'
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: '{"success": false, "error": "..."}'
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List system design quiz decks
+      tags:
+      - quizzes
+  /api/v1/quizzes/decks/{id}:
+    get:
+      description: Retrieves all questions for a selected deck without revealing correct
+        answers.
+      parameters:
+      - description: Quiz Deck ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"success": true, "data": []models.QuizQuestion}'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: '{"success": false, "error": "..."}'
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: '{"success": false, "error": "..."}'
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get questions for a quiz deck
+      tags:
+      - quizzes
+  /api/v1/quizzes/decks/{id}/submit:
+    post:
+      consumes:
+      - application/json
+      description: Evaluates candidate deck answers, updates database mastery, and
+        returns a detailed question review.
+      parameters:
+      - description: Quiz Deck ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Submission payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_MonuChaudhary14_Archon_internal_models.SubmitDeckQuizRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"success": true, "data": models.SubmitDeckQuizResponse}'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: '{"success": false, "error": "..."}'
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: '{"success": false, "error": "unauthorized"}'
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: '{"success": false, "error": "..."}'
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Submit deck quiz answers
+      tags:
+      - quizzes
+  /api/v1/reports:
+    get:
+      description: Retrieves paginated and filtered interview reports for the authenticated
+        candidate.
+      parameters:
+      - description: Search by title or summary
+        in: query
+        name: search
+        type: string
+      - description: Filter by difficulty (beginner, intermediate, senior, staff)
+        in: query
+        name: difficulty
+        type: string
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 10)'
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"success": true, "data": models.ReportsListResponse}'
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: '{"success": false, "error": "unauthorized"}'
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: '{"success": false, "error": "..."}'
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List past interview reports
+      tags:
+      - reports
+  /api/v1/reports/{id}:
+    get:
+      description: Retrieves multi-axis rubrics, strengths, weaknesses, and AI remarks
+        for a session ID. Returns 202 Accepted if evaluation is in progress.
+      parameters:
+      - description: Interview Session ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"success": true, "data": models.DetailedReportResponse}'
+          schema:
+            additionalProperties: true
+            type: object
+        "202":
+          description: '{"status": "evaluating"}'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: '{"success": false, "error": "..."}'
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: '{"success": false, "error": "unauthorized"}'
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: '{"success": false, "error": "report not found"}'
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get detailed evaluation report
+      tags:
+      - reports
+  /api/v1/settings:
+    get:
+      description: Retrieves workspace, role target, AI interviewer persona, and canvas
+        grid configuration.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"success": true, "data": models.UserSettings}'
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: '{"success": false, "error": "unauthorized"}'
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: '{"success": false, "error": "..."}'
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get candidate settings and preferences
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      description: Upserts workspace preferences, target companies, AI persona strictness,
+        and canvas defaults.
+      parameters:
+      - description: Settings update payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_MonuChaudhary14_Archon_internal_models.UserSettings'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"success": true, "message": "Settings updated successfully"}'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: '{"success": false, "error": "..."}'
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: '{"success": false, "error": "unauthorized"}'
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: '{"success": false, "error": "..."}'
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update candidate settings and preferences
+      tags:
+      - settings
   /callback/{provider}:
     get:
       description: Handles the callback from the OAuth provider, exchanges the code

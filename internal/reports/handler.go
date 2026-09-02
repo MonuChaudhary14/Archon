@@ -16,6 +16,20 @@ func NewHandler(service Service) *Handler {
 	return &Handler{service: service}
 }
 
+// ListReports godoc
+// @Summary      List past interview reports
+// @Description  Retrieves paginated and filtered interview reports for the authenticated candidate.
+// @Tags         reports
+// @Produce      json
+// @Security     BearerAuth
+// @Param        search query string false "Search by title or summary"
+// @Param        difficulty query string false "Filter by difficulty (beginner, intermediate, senior, staff)"
+// @Param        page query int false "Page number (default: 1)"
+// @Param        limit query int false "Items per page (default: 10)"
+// @Success      200 {object} map[string]interface{} "{"success": true, "data": models.ReportsListResponse}"
+// @Failure      401 {object} map[string]interface{} "{"success": false, "error": "unauthorized"}"
+// @Failure      500 {object} map[string]interface{} "{"success": false, "error": "..."}"
+// @Router       /api/v1/reports [get]
 func (h *Handler) ListReports(c *gin.Context) {
 	userID, ok := auth.GetUserID(c)
 	if !ok {
@@ -40,6 +54,19 @@ func (h *Handler) ListReports(c *gin.Context) {
 	})
 }
 
+// GetReportDetail godoc
+// @Summary      Get detailed evaluation report
+// @Description  Retrieves multi-axis rubrics, strengths, weaknesses, and AI remarks for a session ID. Returns 202 Accepted if evaluation is in progress.
+// @Tags         reports
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Interview Session ID"
+// @Success      200 {object} map[string]interface{} "{"success": true, "data": models.DetailedReportResponse}"
+// @Success      202 {object} map[string]string "{"status": "evaluating"}"
+// @Failure      400 {object} map[string]interface{} "{"success": false, "error": "..."}"
+// @Failure      401 {object} map[string]interface{} "{"success": false, "error": "unauthorized"}"
+// @Failure      404 {object} map[string]interface{} "{"success": false, "error": "report not found"}"
+// @Router       /api/v1/reports/{id} [get]
 func (h *Handler) GetReportDetail(c *gin.Context) {
 	userID, ok := auth.GetUserID(c)
 	if !ok {

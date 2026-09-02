@@ -34,6 +34,94 @@ const docTemplate = `{
                 "responses": {}
             }
         },
+        "/api/v1/analytics": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves score trajectory trends, domain benchmarks, 90-day activity heatmaps, and pitfall insights over a given range.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "analytics"
+                ],
+                "summary": "Get candidate telemetry and analytics",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Time range (7d, 30d, 90d, all, default: 30d)",
+                        "name": "range",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"success\": true, \"data\": models.AnalyticsResponse}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "{\"success\": false, \"error\": \"unauthorized\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "{\"success\": false, \"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/dashboard/overview": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Aggregates metrics, recommended mock scenario, competency radar, recent interviews, and syllabus roadmap.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "dashboard"
+                ],
+                "summary": "Get candidate dashboard overview",
+                "responses": {
+                    "200": {
+                        "description": "{\"success\": true, \"data\": models.DashboardOverviewResponse}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "{\"success\": false, \"error\": \"unauthorized\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "{\"success\": false, \"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/interviews": {
             "get": {
                 "security": [
@@ -394,6 +482,480 @@ const docTemplate = `{
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/quizzes/daily-challenge": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves the active daily architecture challenge question without revealing correct answer.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "quizzes"
+                ],
+                "summary": "Get today's daily architecture challenge",
+                "responses": {
+                    "200": {
+                        "description": "{\"success\": true, \"data\": models.QuizQuestion}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "{\"success\": false, \"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/quizzes/daily-challenge/verify": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Verifies the candidate's selected option and returns the explanation and correctness.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "quizzes"
+                ],
+                "summary": "Verify daily challenge answer",
+                "parameters": [
+                    {
+                        "description": "Challenge verification payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_internal_models.VerifyDailyChallengeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"success\": true, \"data\": models.VerifyDailyChallengeResponse}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "{\"success\": false, \"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "{\"success\": false, \"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/quizzes/decks": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves available practice topic decks with candidate mastery completion percentages.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "quizzes"
+                ],
+                "summary": "List system design quiz decks",
+                "responses": {
+                    "200": {
+                        "description": "{\"success\": true, \"data\": []models.QuizDeckItem}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "{\"success\": false, \"error\": \"unauthorized\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "{\"success\": false, \"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/quizzes/decks/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves all questions for a selected deck without revealing correct answers.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "quizzes"
+                ],
+                "summary": "Get questions for a quiz deck",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Quiz Deck ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"success\": true, \"data\": []models.QuizQuestion}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "{\"success\": false, \"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "{\"success\": false, \"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/quizzes/decks/{id}/submit": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Evaluates candidate deck answers, updates database mastery, and returns a detailed question review.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "quizzes"
+                ],
+                "summary": "Submit deck quiz answers",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Quiz Deck ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Submission payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_internal_models.SubmitDeckQuizRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"success\": true, \"data\": models.SubmitDeckQuizResponse}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "{\"success\": false, \"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "{\"success\": false, \"error\": \"unauthorized\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "{\"success\": false, \"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/reports": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves paginated and filtered interview reports for the authenticated candidate.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reports"
+                ],
+                "summary": "List past interview reports",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search by title or summary",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by difficulty (beginner, intermediate, senior, staff)",
+                        "name": "difficulty",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default: 10)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"success\": true, \"data\": models.ReportsListResponse}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "{\"success\": false, \"error\": \"unauthorized\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "{\"success\": false, \"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/reports/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves multi-axis rubrics, strengths, weaknesses, and AI remarks for a session ID. Returns 202 Accepted if evaluation is in progress.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reports"
+                ],
+                "summary": "Get detailed evaluation report",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Interview Session ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"success\": true, \"data\": models.DetailedReportResponse}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "202": {
+                        "description": "{\"status\": \"evaluating\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "{\"success\": false, \"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "{\"success\": false, \"error\": \"unauthorized\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "{\"success\": false, \"error\": \"report not found\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/settings": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves workspace, role target, AI interviewer persona, and canvas grid configuration.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Get candidate settings and preferences",
+                "responses": {
+                    "200": {
+                        "description": "{\"success\": true, \"data\": models.UserSettings}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "{\"success\": false, \"error\": \"unauthorized\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "{\"success\": false, \"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Upserts workspace preferences, target companies, AI persona strictness, and canvas defaults.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Update candidate settings and preferences",
+                "parameters": [
+                    {
+                        "description": "Settings update payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_MonuChaudhary14_Archon_internal_models.UserSettings"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"success\": true, \"message\": \"Settings updated successfully\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "{\"success\": false, \"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "{\"success\": false, \"error\": \"unauthorized\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "{\"success\": false, \"error\": \"...\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -901,6 +1463,97 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "github_com_MonuChaudhary14_Archon_internal_models.SubmitDeckQuizRequest": {
+            "type": "object",
+            "required": [
+                "answers"
+            ],
+            "properties": {
+                "answers": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "time_spent_seconds": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_MonuChaudhary14_Archon_internal_models.UserSettings": {
+            "type": "object",
+            "properties": {
+                "auto_save_interval_seconds": {
+                    "type": "integer"
+                },
+                "canvas_grid_type": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "email_notifications": {
+                    "type": "boolean"
+                },
+                "enable_proactive_hints": {
+                    "type": "boolean"
+                },
+                "enable_voice_interview": {
+                    "type": "boolean"
+                },
+                "export_format": {
+                    "type": "string"
+                },
+                "feedback_style": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "interviewer_strictness": {
+                    "type": "string"
+                },
+                "primary_stack": {
+                    "type": "string"
+                },
+                "snap_to_grid": {
+                    "type": "boolean"
+                },
+                "target_companies": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "target_level": {
+                    "type": "string"
+                },
+                "weekly_interview_target": {
+                    "type": "integer"
+                },
+                "weekly_report_digest": {
+                    "type": "boolean"
+                },
+                "years_of_experience": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_MonuChaudhary14_Archon_internal_models.VerifyDailyChallengeRequest": {
+            "type": "object",
+            "required": [
+                "question_id",
+                "selected_option_id"
+            ],
+            "properties": {
+                "question_id": {
+                    "type": "string"
+                },
+                "selected_option_id": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_MonuChaudhary14_Archon_pkg_response.APIResponse": {
             "type": "object",
             "properties": {
