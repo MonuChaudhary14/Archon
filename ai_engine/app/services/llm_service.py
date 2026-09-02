@@ -24,7 +24,10 @@ class LLMService:
 
         db_url = settings.get_database_url()
         if db_url:
-            self.db = SQLDatabase.from_uri(db_url)
+            try:
+                self.db = SQLDatabase.from_uri(db_url)
+            except Exception as e:
+                print(f"Warning: Failed to connect SQLDatabase from URI: {e}")
 
         self.redis_client = None
         if settings.REDIS_URL:
@@ -236,7 +239,7 @@ class LLMService:
                 f"Ensure the JSON output is well-formed. Do not wrap the JSON output in markdown formatting or code blocks."
             )
 
-            diagram_ctx = self.eval_service.get_diagram_context(session_id)
+            diagram_ctx = self.repo.get_diagram_context(session_id)
             diagram_info = ""
             if diagram_ctx and (diagram_ctx["nodes"] or diagram_ctx["edges"]):
                 parsed = self.diagram_service.parse_diagram_to_text(diagram_ctx)
@@ -306,7 +309,7 @@ class LLMService:
         return response
 
     async def process_diagram_event(self, session_id: str) -> str:
-        diagram_ctx = self.eval_service.get_diagram_context(session_id)
+        diagram_ctx = self.repo.get_diagram_context(session_id)
         if not diagram_ctx:
             return ""
         parsed_diagram = self.diagram_service.parse_diagram_to_text(diagram_ctx)
