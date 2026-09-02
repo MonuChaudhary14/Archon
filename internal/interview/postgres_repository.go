@@ -3,8 +3,10 @@ package interview
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -12,10 +14,22 @@ const (
 	getRandomUnansweredQuestionQuery = `
 		SELECT id, title, difficulty, expected_topics, time_limit_minutes, created_at 
 		FROM questions 
-		WHERE difficulty = $1 
+		WHERE difficulty = $1 AND deleted_at IS NULL
 		AND id NOT IN (
 			SELECT question_id FROM interviews WHERE user_id = $2
 		)
+		ORDER BY RANDOM() LIMIT 1;
+	`
+	getRandomQuestionByDifficultyQuery = `
+		SELECT id, title, difficulty, expected_topics, time_limit_minutes, created_at 
+		FROM questions 
+		WHERE difficulty = $1 AND deleted_at IS NULL
+		ORDER BY RANDOM() LIMIT 1;
+	`
+	getRandomQuestionAnyDifficultyQuery = `
+		SELECT id, title, difficulty, expected_topics, time_limit_minutes, created_at 
+		FROM questions 
+		WHERE deleted_at IS NULL
 		ORDER BY RANDOM() LIMIT 1;
 	`
 	getQuestionsQuery = `
@@ -73,6 +87,18 @@ func (r *postgresRepository) GetRandomUnansweredQuestion(ctx context.Context, us
 	err := r.db.QueryRow(ctx, getRandomUnansweredQuestionQuery, difficulty, userID).Scan(
 		&q.ID, &q.Title, &q.Difficulty, &q.ExpectedTopics, &q.TimeLimitMinutes, &q.CreatedAt,
 	)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = r.db.QueryRow(ctx, getRandomQuestionByDifficultyQuery, difficulty).Scan(
+			&q.ID, &q.Title, &q.Difficulty, &q.ExpectedTopics, &q.TimeLimitMinutes, &q.CreatedAt,
+		)
+	}
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = r.db.QueryRow(ctx, getRandomQuestionAnyDifficultyQuery).Scan(
+			&q.ID, &q.Title, &q.Difficulty, &q.ExpectedTopics, &q.TimeLimitMinutes, &q.CreatedAt,
+		)
+	}
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch question: %w", err)
