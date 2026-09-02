@@ -15,15 +15,16 @@ from app.core.interfaces import InterviewRepository
 class LLMService:
     def __init__(self, repo: InterviewRepository | None = None):
         self.llm = ChatGroq(
-            model="openai/gpt-oss-20b",
+            model=settings.GROQ_MODEL or "llama-3.3-70b-versatile",
             temperature=0.7,
             groq_api_key=settings.GROQ_API_KEY
         )
 
         self.db = None
 
-        if settings.DATABASE_URL:
-            self.db = SQLDatabase.from_uri(settings.DATABASE_URL)
+        db_url = settings.get_database_url()
+        if db_url:
+            self.db = SQLDatabase.from_uri(db_url)
 
         self.redis_client = None
         if settings.REDIS_URL:
