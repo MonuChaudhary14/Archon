@@ -7,11 +7,16 @@ import (
 	"time"
 
 	"github.com/MonuChaudhary14/Archon/internal/ai"
+	"github.com/MonuChaudhary14/Archon/internal/analytics"
 	"github.com/MonuChaudhary14/Archon/internal/auth"
 	"github.com/MonuChaudhary14/Archon/internal/cache"
+	"github.com/MonuChaudhary14/Archon/internal/dashboard"
 	"github.com/MonuChaudhary14/Archon/internal/database"
 	"github.com/MonuChaudhary14/Archon/internal/diagram"
 	"github.com/MonuChaudhary14/Archon/internal/interview"
+	"github.com/MonuChaudhary14/Archon/internal/quiz"
+	"github.com/MonuChaudhary14/Archon/internal/reports"
+	"github.com/MonuChaudhary14/Archon/internal/settings"
 	"github.com/MonuChaudhary14/Archon/pkg/config"
 	"github.com/MonuChaudhary14/Archon/pkg/middleware"
 
@@ -82,6 +87,26 @@ func NewServer(cfg *config.Config) (*Server, error) {
 
 	diagramHandler := diagram.NewHandler(diagRepo, verifyOwner)
 
+	dashRepo := dashboard.NewRepository(db)
+	dashService := dashboard.NewService(dashRepo)
+	dashHandler := dashboard.NewHandler(dashService)
+
+	reportRepo := reports.NewRepository(db)
+	reportService := reports.NewService(reportRepo)
+	reportHandler := reports.NewHandler(reportService)
+
+	analyticsRepo := analytics.NewRepository(db)
+	analyticsService := analytics.NewService(analyticsRepo)
+	analyticsHandler := analytics.NewHandler(analyticsService)
+
+	quizRepo := quiz.NewRepository(db)
+	quizService := quiz.NewService(quizRepo)
+	quizHandler := quiz.NewHandler(quizService)
+
+	settingsRepo := settings.NewRepository(db)
+	settingsService := settings.NewService(settingsRepo)
+	settingsHandler := settings.NewHandler(settingsService)
+
 	interviewGroup := router.Group("/api/v1/interviews")
 	interviewGroup.Use(auth.AuthMiddleware(jwtSecret, userRepo))
 	interviewGroup.GET("", interviewHandler.ListInterviews)
@@ -91,7 +116,22 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	interviewGroup.POST("/:id/submit", interviewHandler.SubmitInterview)
 	interviewGroup.GET("/:id/diagram", diagramHandler.GetDiagram)
 
-	// Swagger setup
+	v1 := router.Group("/api/v1")
+	v1.Use(auth.AuthMiddleware(jwtSecret, userRepo))
+	{
+		v1.GET("/dashboard/overview", dashHandler.GetOverview)
+		v1.GET("/reports", reportHandler.ListReports)
+		v1.GET("/reports/:id", reportHandler.GetReportDetail)
+		v1.GET("/analytics", analyticsHandler.GetAnalytics)
+		v1.GET("/quizzes/daily-challenge", quizHandler.GetDailyChallenge)
+		v1.POST("/quizzes/daily-challenge/verify", quizHandler.VerifyDailyChallenge)
+		v1.GET("/quizzes/decks", quizHandler.ListDecks)
+		v1.GET("/quizzes/decks/:id", quizHandler.GetDeckQuestions)
+		v1.POST("/quizzes/decks/:id/submit", quizHandler.SubmitDeckQuiz)
+		v1.GET("/settings", settingsHandler.GetSettings)
+		v1.PUT("/settings", settingsHandler.UpdateSettings)
+	}
+
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	return &Server{
