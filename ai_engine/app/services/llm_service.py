@@ -1,4 +1,4 @@
-from langchain_groq import ChatGroq
+from app.core.key_rotator import LLMKeyRotator
 from app.core.config import settings
 from langchain_community.utilities.sql_database import SQLDatabase
 from app.core.helpers import get_message_history, get_interview_context
@@ -13,12 +13,8 @@ from app.services.interview_repository import SQLInterviewRepository
 from app.core.interfaces import InterviewRepository
 
 class LLMService:
-    def __init__(self, repo: InterviewRepository | None = None):
-        self.llm = ChatGroq(
-            model=settings.GROQ_MODEL or "llama-3.3-70b-versatile",
-            temperature=0.7,
-            groq_api_key=settings.GROQ_API_KEY
-        )
+    def __init__(self, repo: InterviewRepository | None = None, rotator: LLMKeyRotator | None = None):
+        self.llm = rotator or LLMKeyRotator()
 
         self.db = None
 
@@ -167,8 +163,8 @@ class LLMService:
             return fallback
 
     async def generate_response(self, prompt: str, session_id: str = "default") -> str:
-        if not settings.GROQ_API_KEY:
-            return "Error: GROQ_API_KEY is not set"
+        if not (settings.GEMINI_API_KEY or settings.GEMINI_API_KEYS or settings.GROQ_API_KEY or settings.GROQ_API_KEYS):
+            return "Error: No LLM API keys configured"
 
         try:
             title = "System Design"

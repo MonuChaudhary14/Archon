@@ -5,7 +5,12 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
 
+    LLM_PROVIDER: str = "gemini"
+    GEMINI_API_KEY: str = ""
+    GEMINI_API_KEYS: str = ""
+    GEMINI_MODEL: str = "gemini-flash-latest"
     GROQ_API_KEY: str = ""
+    GROQ_API_KEYS: str = ""
     GROQ_MODEL: str = "openai/gpt-oss-20b"
     DATABASE_URL: str = ""
     REDIS_URL: str = ""
@@ -13,7 +18,7 @@ class Settings(BaseSettings):
     QDRANT_URL: str = ""
     HUGGINGFACEHUB_API_TOKEN: str = ""
     model_config = SettingsConfigDict(
-        env_file=".env", 
+        env_file=(".env", "../.env"), 
         env_file_encoding="utf-8", 
         extra="ignore"
     )

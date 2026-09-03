@@ -1,9 +1,9 @@
 import json
-from langchain_groq import ChatGroq
+from typing import Any
 from app.core.config import settings
 
 class DiagramService:
-    def __init__(self, llm: ChatGroq):
+    def __init__(self, llm: Any):
         self.llm = llm
 
     def parse_diagram_to_text(self, diagram_ctx: dict) -> str:
