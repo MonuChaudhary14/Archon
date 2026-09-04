@@ -101,13 +101,13 @@ func (r *postgresRepository) ListReports(ctx context.Context, userID int, search
 			continue
 		}
 
-		durationStr := "42 mins"
+		durationStr := "-"
 		if endedAt.Valid {
 			d := endedAt.Time.Sub(startedAt)
 			durationStr = fmt.Sprintf("%d mins", int(d.Minutes()))
 		}
 
-		summaryText := "Solid execution on system design requirements and capacity planning."
+		summaryText := ""
 		if len(feedbackBytes) > 0 {
 			var fb feedbackJSON
 			if err := json.Unmarshal(feedbackBytes, &fb); err == nil && fb.InterviewerSummary != "" {
@@ -115,17 +115,23 @@ func (r *postgresRepository) ListReports(ctx context.Context, userID int, search
 			}
 		}
 
-		percentile := 75
-		if score > 80 {
-			percentile = 88
-		} else if score > 85 {
+		percentile := 0
+		if score > 85 {
 			percentile = 94
+		} else if score > 75 {
+			percentile = 88
+		} else if score > 60 {
+			percentile = 70
+		} else if score > 40 {
+			percentile = 50
+		} else if score > 0 {
+			percentile = 25
 		}
 
 		reports = append(reports, models.ReportListItem{
-			ID:                 "rep-" + id[:8],
+			ID:                 id,
 			SessionID:          id,
-			Title:              "Design " + title,
+			Title:              title,
 			Difficulty:         strings.ToLower(diff),
 			OverallScore:       score,
 			Percentile:         percentile,
@@ -184,12 +190,24 @@ func (r *postgresRepository) GetReportDetail(ctx context.Context, userID int, se
 		return nil, false, err
 	}
 
-	if !score.Valid || score.Int32 < 0 || len(feedbackBytes) == 0 {
+	if !score.Valid || len(feedbackBytes) == 0 {
 		return nil, true, nil
 	}
 
+	if score.Int32 == -1 {
+		var errPayload struct {
+			Error string `json:"error"`
+		}
+		_ = json.Unmarshal(feedbackBytes, &errPayload)
+		errMsg := "evaluation failed"
+		if errPayload.Error != "" {
+			errMsg = errPayload.Error
+		}
+		return nil, false, fmt.Errorf("%s", errMsg)
+	}
+
 	overallScore := int(score.Int32)
-	durationStr := "42 mins"
+	durationStr := "-"
 	if endedAt.Valid {
 		d := endedAt.Time.Sub(startedAt)
 		durationStr = fmt.Sprintf("%d mins", int(d.Minutes()))
@@ -198,72 +216,40 @@ func (r *postgresRepository) GetReportDetail(ctx context.Context, userID int, se
 	var fb feedbackJSON
 	_ = json.Unmarshal(feedbackBytes, &fb)
 
-	if len(fb.Rubrics) == 0 {
-		fb.Rubrics = []models.RubricCategory{
-			{
-				Name:           "Requirements & Scope",
-				Score:          90,
-				Weight:         15,
-				Summary:        "Clearly differentiated throughput and functional bounds.",
-				FeedbackPoints: []string{"Calculated peak QPS accurately.", "Addressed E2E encryption constraints early."},
-			},
-			{
-				Name:           "High-Level Architecture",
-				Score:          86,
-				Weight:         25,
-				Summary:        "Clean separation between Gateway and Session Services.",
-				FeedbackPoints: []string{"Utilized Redis Pub/Sub for socket routing."},
-			},
-			{
-				Name:           "Data Modeling & Storage",
-				Score:          82,
-				Weight:         20,
-				Summary:        "Cassandra schema keyed by chat_id and timeuuid.",
-				FeedbackPoints: []string{"Prevented hot-spotting on group chats by salting partition keys."},
-			},
-			{
-				Name:           "Scalability & Bottlenecks",
-				Score:          80,
-				Weight:         25,
-				Summary:        "Handled connection storms and reconnection backoffs.",
-				FeedbackPoints: []string{"Introduced exponential backoff with jitter on reconnect."},
-			},
-			{
-				Name:           "Trade-offs & Articulation",
-				Score:          85,
-				Weight:         15,
-				Summary:        "Clear articulation of trade-offs between push vs long-polling.",
-				FeedbackPoints: []string{"Strong defense of WebSockets over HTTP/2 SSE."},
-			},
-		}
+	if fb.Rubrics == nil {
+		fb.Rubrics = []models.RubricCategory{}
 	}
-
-	if len(fb.Strengths) == 0 {
-		fb.Strengths = []string{
-			"Excellent back-of-the-envelope capacity estimation.",
-			"Clear explanation of Redis Pub/Sub routing.",
-		}
+	if fb.Strengths == nil {
+		fb.Strengths = []string{}
 	}
-	if len(fb.Weaknesses) == 0 {
-		fb.Weaknesses = []string{
-			"Did not detail Kafka consumer lag handling during viral bursts.",
-		}
+	if fb.Weaknesses == nil {
+		fb.Weaknesses = []string{}
 	}
-	if len(fb.Recommendations) == 0 {
-		fb.Recommendations = []string{
-			"Review Discord's Elixir/BEAM presence architecture.",
-		}
+	if fb.Recommendations == nil {
+		fb.Recommendations = []string{}
 	}
-	if len(fb.DiagramComponents) == 0 {
-		fb.DiagramComponents = []string{"WebSocket Gateway", "Kafka Cluster", "Redis", "Cassandra", "S3 / CDN"}
+	if fb.DiagramComponents == nil {
+		fb.DiagramComponents = []string{}
 	}
 	if fb.InterviewerSummary == "" {
-		fb.InterviewerSummary = "Solid grasp of persistent WebSocket routing and storage trade-offs."
+		if overallScore == 0 {
+			fb.InterviewerSummary = "Interview submitted without candidate participation or whiteboard architecture diagrams."
+		} else {
+			fb.InterviewerSummary = "Evaluation completed."
+		}
 	}
 
-	percentile := 88
+	percentile := 0
 	if overallScore > 85 {
 		percentile = 94
+	} else if overallScore > 75 {
+		percentile = 88
+	} else if overallScore > 60 {
+		percentile = 70
+	} else if overallScore > 40 {
+		percentile = 50
+	} else if overallScore > 0 {
+		percentile = 25
 	}
 
 	var endedAtPtr *time.Time
@@ -273,7 +259,7 @@ func (r *postgresRepository) GetReportDetail(ctx context.Context, userID int, se
 
 	return &models.DetailedReportResponse{
 		SessionID:          id,
-		Title:              "Design " + title,
+		Title:              title,
 		Difficulty:         strings.ToLower(diff),
 		OverallScore:       overallScore,
 		Percentile:         percentile,
