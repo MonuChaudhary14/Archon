@@ -26,7 +26,7 @@ func (s *service) StartInterview(ctx context.Context, userID int, req CreateInte
 			return nil, "", fmt.Errorf("question difficulty mismatch: requested %s, but question is %s", req.Difficulty, question.Difficulty)
 		}
 	} else {
-		question, err = s.repo.GetRandomUnansweredQuestion(ctx, userID, req.Difficulty)
+		question, err = s.repo.GetRandomQuestion(ctx, req.Difficulty)
 		if err != nil {
 			return nil, "", fmt.Errorf("could not find a suitable question: %w", err)
 		}

@@ -11,17 +11,17 @@ import (
 )
 
 func RunMigrations(databaseURL string, migrationFS fs.FS) error {
-	d, err := iofs.New(migrationFS, ".")
+	sourceDriver, err := iofs.New(migrationFS, ".")
 	if err != nil {
 		return fmt.Errorf("failed to create iofs source driver: %w", err)
 	}
 
-	m, err := migrate.NewWithSourceInstance("iofs", d, databaseURL)
+	migrateInstance, err := migrate.NewWithSourceInstance("iofs", sourceDriver, databaseURL)
 	if err != nil {
 		return fmt.Errorf("failed to create migrate instance: %w", err)
 	}
 
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+	if err := migrateInstance.Up(); err != nil && err != migrate.ErrNoChange {
 		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 

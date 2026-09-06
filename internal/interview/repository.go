@@ -5,7 +5,7 @@ import (
 )
 
 type Repository interface {
-	GetRandomUnansweredQuestion(ctx context.Context, userID int, difficulty string) (*Question, error)
+	GetRandomQuestion(ctx context.Context, difficulty string) (*Question, error)
 	GetQuestions(ctx context.Context) ([]*Question, error)
 	GetQuestionByID(ctx context.Context, id string) (*Question, error)
 	CreateInterview(ctx context.Context, userID int, questionID string) (string, error)

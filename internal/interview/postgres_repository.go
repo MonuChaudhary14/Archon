@@ -3,33 +3,16 @@ package interview
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (
-	getRandomUnansweredQuestionQuery = `
+	getRandomQuestionQuery = `
 		SELECT id, title, difficulty, expected_topics, time_limit_minutes, created_at 
 		FROM questions 
 		WHERE difficulty = $1 AND deleted_at IS NULL
-		AND id NOT IN (
-			SELECT question_id FROM interviews WHERE user_id = $2
-		)
-		ORDER BY RANDOM() LIMIT 1;
-	`
-	getRandomQuestionByDifficultyQuery = `
-		SELECT id, title, difficulty, expected_topics, time_limit_minutes, created_at 
-		FROM questions 
-		WHERE difficulty = $1 AND deleted_at IS NULL
-		ORDER BY RANDOM() LIMIT 1;
-	`
-	getRandomQuestionAnyDifficultyQuery = `
-		SELECT id, title, difficulty, expected_topics, time_limit_minutes, created_at 
-		FROM questions 
-		WHERE deleted_at IS NULL
 		ORDER BY RANDOM() LIMIT 1;
 	`
 	getQuestionsQuery = `
@@ -82,23 +65,11 @@ func NewRepository(db *pgxpool.Pool) Repository {
 	return &postgresRepository{db: db}
 }
 
-func (r *postgresRepository) GetRandomUnansweredQuestion(ctx context.Context, userID int, difficulty string) (*Question, error) {
+func (r *postgresRepository) GetRandomQuestion(ctx context.Context, difficulty string) (*Question, error) {
 	var q Question
-	err := r.db.QueryRow(ctx, getRandomUnansweredQuestionQuery, difficulty, userID).Scan(
+	err := r.db.QueryRow(ctx, getRandomQuestionQuery, difficulty).Scan(
 		&q.ID, &q.Title, &q.Difficulty, &q.ExpectedTopics, &q.TimeLimitMinutes, &q.CreatedAt,
 	)
-
-	if errors.Is(err, pgx.ErrNoRows) {
-		err = r.db.QueryRow(ctx, getRandomQuestionByDifficultyQuery, difficulty).Scan(
-			&q.ID, &q.Title, &q.Difficulty, &q.ExpectedTopics, &q.TimeLimitMinutes, &q.CreatedAt,
-		)
-	}
-
-	if errors.Is(err, pgx.ErrNoRows) {
-		err = r.db.QueryRow(ctx, getRandomQuestionAnyDifficultyQuery).Scan(
-			&q.ID, &q.Title, &q.Difficulty, &q.ExpectedTopics, &q.TimeLimitMinutes, &q.CreatedAt,
-		)
-	}
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch question: %w", err)
