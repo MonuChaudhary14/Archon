@@ -2037,6 +2037,21 @@ files = [
 ]
 
 [[package]]
+name = "nexus-rpc"
+version = "1.4.0"
+description = "Nexus Python SDK"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "nexus_rpc-1.4.0-py3-none-any.whl", hash = "sha256:14c953d3519113f8ccec533a9efdb6b10c28afef75d11cdd6d422640c40b3a49"},
+    {file = "nexus_rpc-1.4.0.tar.gz", hash = "sha256:3b8b373d4865671789cc43623e3dc0bcbf192562e40e13727e17f1c149050fba"},
+]
+
+[package.dependencies]
+typing-extensions = ">=4.12.2"
+
+[[package]]
 name = "numpy"
 version = "1.26.4"
 description = "Fundamental package for array computing in Python"
@@ -3133,6 +3148,44 @@ anyio = ">=3.4.0,<5"
 full = ["httpx (>=0.22.0)", "itsdangerous", "jinja2", "python-multipart (>=0.0.7)", "pyyaml"]
 
 [[package]]
+name = "temporalio"
+version = "1.32.0"
+description = "Temporal.io Python SDK"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "temporalio-1.32.0-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:47c128732e5d49235c9daeeb084d55093cee5ebc200ccc3afaeb4468f08d809e"},
+    {file = "temporalio-1.32.0-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:e78a209dc5ef3303bc6a3033fe11ffd813b778e4b176ec18d20386d65952daa9"},
+    {file = "temporalio-1.32.0-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:a86be3a6d237ea6cc2d632015a5df4cead2aa3143b9601721428b53b87df81e2"},
+    {file = "temporalio-1.32.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4dd44a60ba54901560011a32f085353c0f5e7dac6b8d7a7e0c7c4ba508c6bf5d"},
+    {file = "temporalio-1.32.0-cp310-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:6a7100b1f1bf781f8f1800f89bb787b3dd7ce883e78603442d0c7a40e1143a86"},
+    {file = "temporalio-1.32.0-cp310-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:311abb9f0650f4ad9f24944ef16d8ed47954ddc3075c1e8c73dcd968d70ccdce"},
+    {file = "temporalio-1.32.0-cp310-abi3-win_amd64.whl", hash = "sha256:158386bcd9a6dce1ab63d732fc967c5a5830e15c3012ffaa4b8772bdac099e0f"},
+    {file = "temporalio-1.32.0.tar.gz", hash = "sha256:2cfa50ec7ebdab66902b80c3a09da3258883d68540811ebfbf44f7f293a4d7d0"},
+]
+
+[package.dependencies]
+nexus-rpc = "1.4.0"
+protobuf = ">=3.20,<8.0.0"
+types-protobuf = ">=3.20,<8.0.0"
+typing-extensions = ">=4.2.0,<5"
+
+[package.extras]
+aioboto3 = ["aioboto3 (>=10.4.0)", "types-aioboto3[s3] (>=10.4.0)"]
+deepagents = ["deepagents (>=0.6.12,<0.7) ; python_full_version >= \"3.11.0\"", "langchain (>=1.3.11,<2) ; python_full_version >= \"3.11.0\"", "langchain-core (>=1.4.8,<2) ; python_full_version >= \"3.11.0\""]
+google-adk = ["google-adk (>=2.2.0,<3)", "mcp (>=1.24,<2)"]
+google-genai = ["google-genai (>=2.10.0,<3.0.0)"]
+grpc = ["grpcio (>=1.48.2,<2)"]
+lambda-worker-otel = ["opentelemetry-api (>=1.26,<2)", "opentelemetry-exporter-otlp-proto-grpc (>=1.11.1,<2)", "opentelemetry-sdk (>=1.26,<2)", "opentelemetry-sdk-extension-aws (>=2.0.0,<3)", "opentelemetry-semantic-conventions (>=0.40b0,<1)"]
+langgraph = ["langgraph (>=1.1.0)"]
+langsmith = ["langsmith (>=0.7.34,<0.9)"]
+openai-agents = ["mcp (>=1.9.4,<2)", "openai-agents (>=0.19.2,<0.20)"]
+opentelemetry = ["opentelemetry-api (>=1.26,<2)", "opentelemetry-sdk (>=1.26,<2)"]
+pydantic = ["pydantic (>=2.0.0,<3)"]
+strands-agents = ["strands-agents (>=1.39.0)"]
+
+[[package]]
 name = "tenacity"
 version = "8.5.0"
 description = "Retry code until it succeeds"
@@ -3186,6 +3239,18 @@ annotated-doc = ">=0.0.2"
 colorama = {version = "*", markers = "platform_system == \"Windows\""}
 rich = ">=13.8.0"
 shellingham = ">=1.3.0"
+
+[[package]]
+name = "types-protobuf"
+version = "7.35.1.20260906"
+description = "Typing stubs for protobuf"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "types_protobuf-7.35.1.20260906-py3-none-any.whl", hash = "sha256:5155e48569e0dabff303fdf578db96cd31ea9a4a63b18018a4ceac6b0ae17462"},
+    {file = "types_protobuf-7.35.1.20260906.tar.gz", hash = "sha256:efd1a3862d4c967dad5512ef8d56b1530ac84f182c41735b94004756518c4998"},
+]
 
 [[package]]
 name = "typing-extensions"
@@ -3664,4 +3729,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "752c1c5d7bbaf81c67ffc8d93cde6f8091dc05fbe452190d224002c0e5539b6f"
+content-hash = "407ce29e69d12b84c7e5f0bbf1aff99ab970d4a54ea7c5eee0dfabe92e13c935"

@@ -6,8 +6,9 @@ from app.services.llm_service import LLMService
 
 class KafkaConsumerService:
     
-    def __init__(self,llm_service: LLMService):
+    def __init__(self, llm_service: LLMService, temporal_worker = None):
         self.llm_service = llm_service
+        self.temporal_worker = temporal_worker
         self.debounce_tasks = {}
         self.last_diagram_state = {}
         self.consumer = AIOKafkaConsumer(
@@ -99,7 +100,15 @@ class KafkaConsumerService:
                 return
 
             print(f"Processing evaluation request from Kafka for session: {session_id}")
-            
+
+            if self.temporal_worker:
+                try:
+                    await self.temporal_worker.execute_evaluation_workflow(session_id)
+                    print(f"Successfully triggered Temporal workflow for session: {session_id}")
+                    return
+                except Exception as temp_err:
+                    print(f"Failed to start Temporal workflow: {temp_err}. Falling back to direct evaluation.")
+
             max_retries = 3
             backoff = 2
             

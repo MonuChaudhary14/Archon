@@ -83,6 +83,8 @@ services:
       - REDIS_URL=redis://${REDIS_ADDR}
       - KAFKA_BROKERS=${KAFKA_BROKERS}
       - QDRANT_URL=http://qdrant:6333
+      - TEMPORAL_HOST=${TEMPORAL_HOST}
+      - TEMPORAL_NAMESPACE=${TEMPORAL_NAMESPACE}
     restart: unless-stopped
     depends_on:
       db:
@@ -91,6 +93,35 @@ services:
         condition: service_started
       qdrant:
         condition: service_started
+      temporal:
+        condition: service_started
+
+  temporal:
+    image: temporalio/auto-setup:1.23.1
+    ports:
+      - "7233:7233"
+    environment:
+      - DB=postgresql
+      - DB_PORT=${DB_PORT}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PWD=${DB_PASSWORD}
+      - POSTGRES_SEEDS=db
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  temporal-ui:
+    image: temporalio/ui:2.26.0
+    ports:
+      - "8763:8080"
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://localhost:8763
+    depends_on:
+      - temporal
+    restart: unless-stopped
 
   qdrant:
     image: qdrant/qdrant:v1.9.0

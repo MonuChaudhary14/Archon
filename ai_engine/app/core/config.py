@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     KAFKA_BROKERS: str = ""
     QDRANT_URL: str = ""
     HUGGINGFACEHUB_API_TOKEN: str = ""
+    TEMPORAL_HOST: str = ""
+    TEMPORAL_NAMESPACE: str = "default"
     model_config = SettingsConfigDict(
         env_file=(".env", "../.env"), 
         env_file_encoding="utf-8", 
