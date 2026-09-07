@@ -104,7 +104,8 @@ func (r *postgresRepository) getTrendPoints(ctx context.Context, userID int) []m
 	for rows.Next() {
 		var label string
 		var val int
-		if err := rows.Scan(&label, &val); err == nil {
+		err := rows.Scan(&label, &val)
+		if err == nil {
 			points = append(points, models.TrendPoint{Label: label, Value: val})
 		}
 	}
@@ -148,9 +149,11 @@ func (r *postgresRepository) getDomainMastery(ctx context.Context, userID int) [
 
 	for rows.Next() {
 		var fbBytes []byte
-		if err := rows.Scan(&fbBytes); err == nil && len(fbBytes) > 0 {
+		err := rows.Scan(&fbBytes)
+		if err == nil && len(fbBytes) > 0 {
 			var fb fbPayload
-			if err := json.Unmarshal(fbBytes, &fb); err == nil {
+			err = json.Unmarshal(fbBytes, &fb)
+			if err == nil {
 				for _, rub := range fb.Rubrics {
 					domainScores[rub.Name] = append(domainScores[rub.Name], rub.Score)
 					domainCounts[rub.Name]++
@@ -203,9 +206,11 @@ func (r *postgresRepository) getPitfalls(ctx context.Context, userID int) []mode
 
 	for rows.Next() {
 		var fbBytes []byte
-		if err := rows.Scan(&fbBytes); err == nil && len(fbBytes) > 0 {
+		err := rows.Scan(&fbBytes)
+		if err == nil && len(fbBytes) > 0 {
 			var fb fbPayload
-			if err := json.Unmarshal(fbBytes, &fb); err == nil {
+			err = json.Unmarshal(fbBytes, &fb)
+			if err == nil {
 				for _, w := range fb.Weaknesses {
 					if len(w) > 0 && idx <= 5 {
 						insights = append(insights, models.PitfallInsight{
@@ -252,7 +257,8 @@ func (r *postgresRepository) getHeatmapDays(ctx context.Context, userID int) []m
 	for rows.Next() {
 		var dayStr string
 		var cnt int
-		if err := rows.Scan(&dayStr, &cnt); err == nil {
+		err := rows.Scan(&dayStr, &cnt)
+		if err == nil {
 			days = append(days, models.HeatmapDay{Date: dayStr, Count: cnt})
 		}
 	}

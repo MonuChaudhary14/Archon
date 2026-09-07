@@ -26,7 +26,8 @@ func (h *Handler) Login(
 
 	var req LoginRequest
 
-	if err := c.ShouldBindJSON(&req); err != nil {
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}

@@ -33,7 +33,8 @@ func TestHubRedisPubSub(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	if err := rClient.Ping(ctx).Err(); err != nil {
+	err := rClient.Ping(ctx).Err()
+	if err != nil {
 		t.Skip("Skipping Hub test: local Redis not running on localhost:6379")
 	}
 

@@ -115,7 +115,8 @@ func ChatHandler(
 			for {
 				select {
 				case <-ticker.C:
-					if err := safeWs.WriteMessage(websocket.PingMessage, nil); err != nil {
+					err := safeWs.WriteMessage(websocket.PingMessage, nil)
+					if err != nil {
 						_ = safeWs.Close()
 						return
 					}
@@ -129,7 +130,8 @@ func ChatHandler(
 			_ = safeWs.Close()
 		}()
 
-		if err := processor.ProcessSession(c.Request.Context(), sessionID, safeWs); err != nil {
+		err = processor.ProcessSession(c.Request.Context(), sessionID, safeWs)
+		if err != nil {
 			log.Printf("WebSocket session finished: %v", err)
 		}
 	}

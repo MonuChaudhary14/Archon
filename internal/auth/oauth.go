@@ -59,7 +59,8 @@ func (g *GoogleOAuth) GetUserInfo(ctx context.Context, token *oauth2.Token) (*OA
 		Email string `json:"email"`
 		Name  string `json:"name"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+	err = json.NewDecoder(resp.Body).Decode(&data)
+	if err != nil {
 		return nil, err
 	}
 
@@ -106,7 +107,8 @@ func (g *GithubOAuth) GetUserInfo(ctx context.Context, token *oauth2.Token) (*OA
 		Email string `json:"email"`
 		Login string `json:"login"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+	err = json.NewDecoder(resp.Body).Decode(&data)
+	if err != nil {
 		return nil, err
 	}
 
@@ -121,7 +123,8 @@ func (g *GithubOAuth) GetUserInfo(ctx context.Context, token *oauth2.Token) (*OA
 				Email   string `json:"email"`
 				Primary bool   `json:"primary"`
 			}
-			if err := json.NewDecoder(emailResp.Body).Decode(&emails); err == nil {
+			err = json.NewDecoder(emailResp.Body).Decode(&emails)
+			if err == nil {
 				for _, e := range emails {
 					if e.Primary {
 						email = e.Email

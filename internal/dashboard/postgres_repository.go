@@ -115,7 +115,8 @@ func (r *postgresRepository) getScoreHistory(ctx context.Context, userID int) []
 	var history []int
 	for rows.Next() {
 		var s int
-		if err := rows.Scan(&s); err == nil {
+		err := rows.Scan(&s)
+		if err == nil {
 			history = append(history, s)
 		}
 	}
@@ -191,9 +192,11 @@ func (r *postgresRepository) getCompetencies(ctx context.Context, userID int) []
 	scoresMap := make(map[string][]int)
 	for rows.Next() {
 		var fbBytes []byte
-		if err := rows.Scan(&fbBytes); err == nil && len(fbBytes) > 0 {
+		err := rows.Scan(&fbBytes)
+		if err == nil && len(fbBytes) > 0 {
 			var fb fbPayload
-			if err := json.Unmarshal(fbBytes, &fb); err == nil {
+			err = json.Unmarshal(fbBytes, &fb)
+			if err == nil {
 				for _, rub := range fb.Rubrics {
 					scoresMap[rub.Name] = append(scoresMap[rub.Name], rub.Score)
 				}
@@ -253,7 +256,8 @@ func (r *postgresRepository) calculateStreak(ctx context.Context, userID int) in
 
 	for rows.Next() {
 		var actDate time.Time
-		if err := rows.Scan(&actDate); err != nil {
+		err := rows.Scan(&actDate)
+		if err != nil {
 			break
 		}
 		actDate = actDate.UTC().Truncate(24 * time.Hour)
@@ -296,7 +300,8 @@ func (r *postgresRepository) getRecentInterviews(ctx context.Context, userID int
 		var startedAt time.Time
 		var endedAt sql.NullTime
 
-		if err := rows.Scan(&id, &title, &diff, &score, &startedAt, &endedAt); err != nil {
+		err := rows.Scan(&id, &title, &diff, &score, &startedAt, &endedAt)
+		if err != nil {
 			continue
 		}
 

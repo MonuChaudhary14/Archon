@@ -28,14 +28,15 @@ func (h *Hub) Register(sessionID string, conn WebSocketConnection) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if cancel, exists := h.cancels[sessionID]; exists {
+	cancel, exists := h.cancels[sessionID]
+	if exists {
 		cancel()
 	}
 
 	h.connections[sessionID] = conn
 
-	ctx, cancel := context.WithCancel(context.Background())
-	h.cancels[sessionID] = cancel
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	h.cancels[sessionID] = cancelFunc
 
 	go h.subscribeToRedis(ctx, sessionID, conn)
 }
@@ -66,7 +67,8 @@ func (h *Hub) Unregister(sessionID string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if cancel, exists := h.cancels[sessionID]; exists {
+	cancel, exists := h.cancels[sessionID]
+	if exists {
 		cancel()
 		delete(h.cancels, sessionID)
 	}

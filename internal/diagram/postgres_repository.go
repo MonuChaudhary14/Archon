@@ -88,7 +88,8 @@ func (r *postgresRepository) GetDiagram(ctx context.Context, interviewID string)
 
 	for rows.Next() {
 		var n Node
-		if err := rows.Scan(&n.ID, &n.InterviewID, &n.Type, &n.Label, &n.X, &n.Y); err != nil {
+		err := rows.Scan(&n.ID, &n.InterviewID, &n.Type, &n.Label, &n.X, &n.Y)
+		if err != nil {
 			return nil, nil, fmt.Errorf("failed to scan diagram node: %w", err)
 		}
 		nodes = append(nodes, n)
@@ -108,7 +109,8 @@ func (r *postgresRepository) GetDiagram(ctx context.Context, interviewID string)
 
 	for rows2.Next() {
 		var e Edge
-		if err := rows2.Scan(&e.ID, &e.InterviewID, &e.Source, &e.Target, &e.Type); err != nil {
+		err := rows2.Scan(&e.ID, &e.InterviewID, &e.Source, &e.Target, &e.Type)
+		if err != nil {
 			return nil, nil, fmt.Errorf("failed to scan diagram edge: %w", err)
 		}
 		edges = append(edges, e)

@@ -33,18 +33,20 @@ func (w *EmailWorker) Start() {
 
 	mux.HandleFunc(TypeEmailDelivery, w.HandleEmailDeliveryTask)
 
-	if err := w.server.Start(mux); err != nil {
+	err := w.server.Start(mux)
+	if err != nil {
 		log.Fatalf("could not start asynq worker server: %v", err)
 	}
 }
 
 func (w *EmailWorker) HandleEmailDeliveryTask(ctx context.Context, t *asynq.Task) error {
 	var job EmailJob
-	if err := json.Unmarshal(t.Payload(), &job); err != nil {
+	err := json.Unmarshal(t.Payload(), &job)
+	if err != nil {
 		return fmt.Errorf("json unmarshal failed: %w", err)
 	}
 
-	err := w.mailService.SendVerificationEmail(job.Email, job.OTP)
+	err = w.mailService.SendVerificationEmail(job.Email, job.OTP)
 	if err != nil {
 		return fmt.Errorf("failed to send email: %w", err)
 	}

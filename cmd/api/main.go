@@ -22,13 +22,15 @@ import (
 // @in header
 // @name Authorization
 func main() {
-	if err := godotenv.Load(); err != nil {
+	err := godotenv.Load()
+	if err != nil {
 		log.Println("No .env file found, using environment variables")
 	}
 
 	cfg := config.Load()
 
-	if err := database.RunMigrations(cfg.DatabaseURL, migrations.FS); err != nil {
+	err = database.RunMigrations(cfg.DatabaseURL, migrations.FS)
+	if err != nil {
 		log.Fatalf("Database migration failed: %v", err)
 	}
 
@@ -37,7 +39,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := srv.Run(cfg.Port); err != nil {
+	err = srv.Run(cfg.Port)
+	if err != nil {
 		log.Fatal(err)
 	}
 }

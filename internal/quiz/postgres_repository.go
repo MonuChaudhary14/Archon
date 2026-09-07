@@ -129,7 +129,8 @@ func (r *postgresRepository) ListDecks(ctx context.Context, userID int) ([]model
 	var decks []models.QuizDeckItem
 	for rows.Next() {
 		var item models.QuizDeckItem
-		if err := rows.Scan(&item.ID, &item.Title, &item.Description, &item.Difficulty, &item.QuestionCount, &item.EstMinutes, &item.IconName, &item.Category, &item.CompletedPercent); err == nil {
+		err := rows.Scan(&item.ID, &item.Title, &item.Description, &item.Difficulty, &item.QuestionCount, &item.EstMinutes, &item.IconName, &item.Category, &item.CompletedPercent)
+		if err == nil {
 			decks = append(decks, item)
 		}
 	}
@@ -157,7 +158,8 @@ func (r *postgresRepository) GetDeckQuestions(ctx context.Context, deckID string
 		var scenario sql.NullString
 		var optionsBytes []byte
 
-		if err := rows.Scan(&id, &qText, &scenario, &topicTag, &optionsBytes); err != nil {
+		err := rows.Scan(&id, &qText, &scenario, &topicTag, &optionsBytes)
+		if err != nil {
 			continue
 		}
 
@@ -206,7 +208,8 @@ func (r *postgresRepository) SubmitDeckQuiz(ctx context.Context, userID int, dec
 	for rows.Next() {
 		var qID string
 		var optionsBytes []byte
-		if err := rows.Scan(&qID, &optionsBytes); err != nil {
+		err := rows.Scan(&qID, &optionsBytes)
+		if err != nil {
 			continue
 		}
 		totalQuestions++

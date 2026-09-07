@@ -60,7 +60,8 @@ func (s *authService) VerifyResetOTP(
 		return nil, err
 	}
 
-	if err := s.otpStore.SaveResetToken(ctx, token, req.Email); err != nil {
+	err = s.otpStore.SaveResetToken(ctx, token, req.Email)
+	if err != nil {
 		return nil, err
 	}
 
@@ -93,7 +94,8 @@ func (s *authService) ResetPassword(
 	}
 
 	err = s.userRepository.RunInTx(ctx, func(txRepo UserRepository) error {
-		if err := txRepo.UpdatePassword(ctx, user.Email, hashedPassword); err != nil {
+		err := txRepo.UpdatePassword(ctx, user.Email, hashedPassword)
+		if err != nil {
 			return err
 		}
 		// Revoke all tokens within the transaction

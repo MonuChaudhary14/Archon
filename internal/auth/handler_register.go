@@ -57,7 +57,8 @@ func (h *Handler) VerifyEmail(
 
 	var req VerifyEmailRequest
 
-	if err := c.ShouldBindJSON(&req); err != nil {
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -65,7 +66,7 @@ func (h *Handler) VerifyEmail(
 	req.Email = strings.TrimSpace(req.Email)
 	req.OTP = strings.TrimSpace(req.OTP)
 
-	err := h.authService.VerifyEmail(
+	err = h.authService.VerifyEmail(
 		c.Request.Context(),
 		req,
 	)
@@ -90,7 +91,8 @@ func (h *Handler) VerifyEmail(
 // @Router /resend-otp [post]
 func (h *Handler) ResendOTP(c *gin.Context) {
 	var req ResendOTPRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -98,7 +100,8 @@ func (h *Handler) ResendOTP(c *gin.Context) {
 	req.Email = strings.TrimSpace(req.Email)
 	req.Intent = strings.TrimSpace(req.Intent)
 
-	if err := h.authService.ResendOTP(c.Request.Context(), req); err != nil {
+	err = h.authService.ResendOTP(c.Request.Context(), req)
+	if err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}

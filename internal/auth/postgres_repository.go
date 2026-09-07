@@ -40,7 +40,8 @@ func (r *postgresUserRepository) RunInTx(ctx context.Context, fn func(txRepo Use
 		db:   tx,
 	}
 
-	if err := fn(txRepo); err != nil {
+	err = fn(txRepo)
+	if err != nil {
 		return err
 	}
 

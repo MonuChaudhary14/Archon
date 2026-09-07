@@ -95,7 +95,8 @@ func (r *postgresRepository) GetQuestions(ctx context.Context) ([]*Question, err
 		}
 		questions = append(questions, &q)
 	}
-	if err = rows.Err(); err != nil {
+	err = rows.Err()
+	if err != nil {
 		return nil, fmt.Errorf("error reading question rows: %w", err)
 	}
 
@@ -151,7 +152,8 @@ func (r *postgresRepository) CreateInterview(ctx context.Context, userID int, qu
 		return "", fmt.Errorf("failed to insert outbox event: %w", err)
 	}
 
-	if err = tx.Commit(ctx); err != nil {
+	err = tx.Commit(ctx)
+	if err != nil {
 		return "", fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
@@ -201,7 +203,8 @@ func (r *postgresRepository) SubmitInterview(ctx context.Context, userID int, in
 		return fmt.Errorf("failed to insert outbox event: %w", err)
 	}
 
-	if err = tx.Commit(ctx); err != nil {
+	err = tx.Commit(ctx)
+	if err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
@@ -226,7 +229,8 @@ func (r *postgresRepository) GetInterviewsByUserID(ctx context.Context, userID i
 		}
 		interviews = append(interviews, &i)
 	}
-	if err = rows.Err(); err != nil {
+	err = rows.Err()
+	if err != nil {
 		return nil, fmt.Errorf("error reading interview rows: %w", err)
 	}
 

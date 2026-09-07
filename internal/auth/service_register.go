@@ -172,12 +172,14 @@ func (s *authService) ResendOTP(
 		}
 
 		otpHash := HashOTP(otp)
-		if err := s.otpStore.SaveVerificationOTP(ctx, req.Email, otpHash); err != nil {
+		err = s.otpStore.SaveVerificationOTP(ctx, req.Email, otpHash)
+		if err != nil {
 			return err
 		}
 
 		// Refresh the UnverifiedUser TTL
-		if err := s.otpStore.SaveUnverifiedUser(ctx, req.Email, unverifiedUser); err != nil {
+		err = s.otpStore.SaveUnverifiedUser(ctx, req.Email, unverifiedUser)
+		if err != nil {
 			return err
 		}
 
@@ -199,7 +201,8 @@ func (s *authService) ResendOTP(
 		}
 
 		otpHash := HashOTP(otp)
-		if err := s.otpStore.SavePasswordResetOTP(ctx, user.Email, otpHash); err != nil {
+		err = s.otpStore.SavePasswordResetOTP(ctx, user.Email, otpHash)
+		if err != nil {
 			return err
 		}
 

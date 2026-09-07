@@ -61,7 +61,8 @@ func GenerateRefreshToken() (string, error) {
 
 func ValidateAccessToken(tokenString string, secret string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+		_, ok := token.Method.(*jwt.SigningMethodHMAC)
+		if !ok {
 			return nil, ErrInvalidToken
 		}
 		return []byte(secret), nil
@@ -71,7 +72,8 @@ func ValidateAccessToken(tokenString string, secret string) (*Claims, error) {
 		return nil, err
 	}
 
-	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
+	claims, ok := token.Claims.(*Claims)
+	if ok && token.Valid {
 		return claims, nil
 	}
 

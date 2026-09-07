@@ -82,7 +82,8 @@ func (s *OTPStore) GetUnverifiedUser(ctx context.Context, email string) (*Unveri
 		return nil, err
 	}
 	var user UnverifiedUser
-	if err := json.Unmarshal([]byte(data), &user); err != nil {
+	err = json.Unmarshal([]byte(data), &user)
+	if err != nil {
 		return nil, err
 	}
 	return &user, nil

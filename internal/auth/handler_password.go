@@ -20,7 +20,8 @@ import (
 // @Router /forgot-password [post]
 func (h *Handler) ForgotPassword(c *gin.Context) {
 	var req ForgotPasswordRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -44,7 +45,8 @@ func (h *Handler) ForgotPassword(c *gin.Context) {
 // @Router /verify-reset-otp [post]
 func (h *Handler) VerifyResetOTP(c *gin.Context) {
 	var req VerifyResetOTPRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -73,7 +75,8 @@ func (h *Handler) VerifyResetOTP(c *gin.Context) {
 // @Router /reset-password [post]
 func (h *Handler) ResetPassword(c *gin.Context) {
 	var req ResetPasswordRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -81,7 +84,8 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 	req.ResetToken = strings.TrimSpace(req.ResetToken)
 	req.NewPassword = strings.TrimSpace(req.NewPassword)
 
-	if err := h.authService.ResetPassword(c.Request.Context(), req); err != nil {
+	err = h.authService.ResetPassword(c.Request.Context(), req)
+	if err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}

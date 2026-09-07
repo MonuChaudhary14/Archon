@@ -66,12 +66,13 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 	}
 
 	var req models.UserSettings
-	if err := c.ShouldBindJSON(&req); err != nil {
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid settings payload"})
 		return
 	}
 
-	err := h.service.UpdateSettings(c.Request.Context(), userID, req)
+	err = h.service.UpdateSettings(c.Request.Context(), userID, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
 		return

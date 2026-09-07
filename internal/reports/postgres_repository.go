@@ -97,7 +97,8 @@ func (r *postgresRepository) ListReports(ctx context.Context, userID int, search
 		var endedAt sql.NullTime
 		var feedbackBytes []byte
 
-		if err := rows.Scan(&id, &title, &diff, &score, &startedAt, &endedAt, &feedbackBytes); err != nil {
+		err := rows.Scan(&id, &title, &diff, &score, &startedAt, &endedAt, &feedbackBytes)
+		if err != nil {
 			continue
 		}
 
@@ -110,7 +111,8 @@ func (r *postgresRepository) ListReports(ctx context.Context, userID int, search
 		summaryText := ""
 		if len(feedbackBytes) > 0 {
 			var fb feedbackJSON
-			if err := json.Unmarshal(feedbackBytes, &fb); err == nil && fb.InterviewerSummary != "" {
+			err = json.Unmarshal(feedbackBytes, &fb)
+			if err == nil && fb.InterviewerSummary != "" {
 				summaryText = fb.InterviewerSummary
 			}
 		}

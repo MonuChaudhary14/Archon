@@ -52,7 +52,8 @@ func (h *Handler) GetDailyChallenge(c *gin.Context) {
 // @Router       /api/v1/quizzes/daily-challenge/verify [post]
 func (h *Handler) VerifyDailyChallenge(c *gin.Context) {
 	var req models.VerifyDailyChallengeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid request body"})
 		return
 	}
@@ -156,7 +157,8 @@ func (h *Handler) SubmitDeckQuiz(c *gin.Context) {
 	}
 
 	var req models.SubmitDeckQuizRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid answers payload"})
 		return
 	}

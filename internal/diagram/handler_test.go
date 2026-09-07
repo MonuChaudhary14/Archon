@@ -61,7 +61,8 @@ func TestGetDiagram(t *testing.T) {
 			expectedStatus: http.StatusOK,
 			verifyJSON: func(t *testing.T, body string) {
 				var resp DiagramResponse
-				if err := json.Unmarshal([]byte(body), &resp); err != nil {
+				err := json.Unmarshal([]byte(body), &resp)
+				if err != nil {
 					t.Fatalf("failed to unmarshal response: %v", err)
 				}
 				if len(resp.Nodes) != 1 || resp.Nodes[0].ID != "node1" {

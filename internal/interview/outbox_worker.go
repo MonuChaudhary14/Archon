@@ -86,7 +86,8 @@ func (w *OutboxWorker) processPendingEvents(ctx context.Context) {
 	var events []outboxEvent
 	for rows.Next() {
 		var ev outboxEvent
-		if err := rows.Scan(&ev.id, &ev.aggregateID, &ev.eventType, &ev.payload, &ev.retries); err != nil {
+		err := rows.Scan(&ev.id, &ev.aggregateID, &ev.eventType, &ev.payload, &ev.retries)
+		if err != nil {
 			log.Printf("Outbox worker failed to scan event: %v", err)
 			continue
 		}
@@ -123,7 +124,8 @@ func (w *OutboxWorker) processPendingEvents(ctx context.Context) {
 				args = []interface{}{newRetries, err.Error(), ev.id}
 			}
 
-			if _, execErr := tx.Exec(ctx, updateQuery, args...); execErr != nil {
+			_, execErr := tx.Exec(ctx, updateQuery, args...)
+			if execErr != nil {
 				log.Printf("Failed to update outbox event %s on failure: %v", ev.id, execErr)
 			}
 		} else {
@@ -132,13 +134,15 @@ func (w *OutboxWorker) processPendingEvents(ctx context.Context) {
 				SET status = 'PROCESSED', processed_at = NOW() 
 				WHERE id = $1
 			`
-			if _, execErr := tx.Exec(ctx, updateQuery, ev.id); execErr != nil {
+			_, execErr := tx.Exec(ctx, updateQuery, ev.id)
+			if execErr != nil {
 				log.Printf("Failed to mark outbox event %s as processed: %v", ev.id, execErr)
 			}
 		}
 	}
 
-	if err := tx.Commit(ctx); err != nil {
+	err = tx.Commit(ctx)
+	if err != nil {
 		log.Printf("Outbox worker failed to commit transaction: %v", err)
 	}
 }

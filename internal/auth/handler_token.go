@@ -28,7 +28,8 @@ func (h *Handler) Refresh(
 	if err == nil && refreshToken != "" {
 		req.RefreshToken = refreshToken
 	} else {
-		if err := c.ShouldBindJSON(&req); err != nil {
+		err = c.ShouldBindJSON(&req)
+		if err != nil {
 			response.Error(c, http.StatusBadRequest, "refresh token not found in cookie or request body")
 			return
 		}
@@ -70,13 +71,15 @@ func (h *Handler) Logout(c *gin.Context) {
 	if err == nil && refreshToken != "" {
 		req.RefreshToken = refreshToken
 	} else {
-		if err := c.ShouldBindJSON(&req); err != nil {
+		err = c.ShouldBindJSON(&req)
+		if err != nil {
 			response.Error(c, http.StatusBadRequest, "refresh token not found in cookie or request body")
 			return
 		}
 	}
 
-	if err := h.authService.Logout(c.Request.Context(), req); err != nil {
+	err = h.authService.Logout(c.Request.Context(), req)
+	if err != nil {
 		response.Error(c, http.StatusUnauthorized, err.Error())
 		return
 	}

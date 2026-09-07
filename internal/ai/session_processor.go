@@ -44,7 +44,8 @@ func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string,
 	if err == nil {
 		for _, msgStr := range history {
 			var msgMap map[string]interface{}
-			if err := json.Unmarshal([]byte(msgStr), &msgMap); err == nil {
+			err := json.Unmarshal([]byte(msgStr), &msgMap)
+			if err == nil {
 				var role string
 				msgType, _ := msgMap["type"].(string)
 				switch msgType {
@@ -56,8 +57,10 @@ func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string,
 					continue
 				}
 
-				if data, ok := msgMap["data"].(map[string]interface{}); ok {
-					if content, ok := data["content"].(string); ok {
+				data, ok := msgMap["data"].(map[string]interface{})
+				if ok {
+					content, ok := data["content"].(string)
+					if ok {
 						payload := map[string]string{
 							"role":    role,
 							"content": content,
@@ -79,8 +82,10 @@ func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string,
 		}
 
 		var wsMsg WSMessage
-		if err := json.Unmarshal(msg, &wsMsg); err != nil {
-			if err := p.promptPub.PublishPrompt(sessionID, string(msg)); err != nil {
+		err = json.Unmarshal(msg, &wsMsg)
+		if err != nil {
+			err = p.promptPub.PublishPrompt(sessionID, string(msg))
+			if err != nil {
 				_ = conn.WriteMessage(websocket.TextMessage, []byte("Error sending message to processing queue"))
 			}
 			continue
@@ -89,10 +94,13 @@ func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string,
 		switch wsMsg.Type {
 		case "chat":
 			var prompt string
-			if err := json.Unmarshal(wsMsg.Data, &prompt); err != nil {
+			err := json.Unmarshal(wsMsg.Data, &prompt)
+			if err != nil {
 				var objMap map[string]interface{}
-				if err2 := json.Unmarshal(wsMsg.Data, &objMap); err2 == nil {
-					if content, ok := objMap["content"].(string); ok {
+				err2 := json.Unmarshal(wsMsg.Data, &objMap)
+				if err2 == nil {
+					content, ok := objMap["content"].(string)
+					if ok {
 						prompt = content
 					} else {
 						prompt = string(wsMsg.Data)
@@ -101,19 +109,23 @@ func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string,
 					prompt = string(wsMsg.Data)
 				}
 			}
-			if err := p.promptPub.PublishPrompt(sessionID, prompt); err != nil {
+			err = p.promptPub.PublishPrompt(sessionID, prompt)
+			if err != nil {
 				_ = conn.WriteMessage(websocket.TextMessage, []byte("Error sending message to processing queue"))
 			}
 
 		case "node_added", "node_updated":
 			var node diagram.Node
-			if err := json.Unmarshal(wsMsg.Data, &node); err == nil {
+			err := json.Unmarshal(wsMsg.Data, &node)
+			if err == nil {
 				node.InterviewID = sessionID
-				if err := p.diagRepo.SaveNode(ctx, node); err != nil {
+				err = p.diagRepo.SaveNode(ctx, node)
+				if err != nil {
 					log.Printf("Failed to save node: %v", err)
 					_ = conn.WriteMessage(websocket.TextMessage, []byte("Error saving diagram node"))
 				} else {
-					if err := p.diagramPub.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data); err != nil {
+					err = p.diagramPub.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data)
+					if err != nil {
 						log.Printf("Failed to publish diagram event: %v", err)
 					}
 				}
@@ -125,12 +137,15 @@ func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string,
 			var payload struct {
 				ID string `json:"id"`
 			}
-			if err := json.Unmarshal(wsMsg.Data, &payload); err == nil {
-				if err := p.diagRepo.DeleteNode(ctx, sessionID, payload.ID); err != nil {
+			err := json.Unmarshal(wsMsg.Data, &payload)
+			if err == nil {
+				err = p.diagRepo.DeleteNode(ctx, sessionID, payload.ID)
+				if err != nil {
 					log.Printf("Failed to delete node: %v", err)
 					_ = conn.WriteMessage(websocket.TextMessage, []byte("Error deleting diagram node"))
 				} else {
-					if err := p.diagramPub.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data); err != nil {
+					err = p.diagramPub.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data)
+					if err != nil {
 						log.Printf("Failed to publish diagram event: %v", err)
 					}
 				}
@@ -138,13 +153,16 @@ func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string,
 
 		case "edge_added", "edge_updated":
 			var edge diagram.Edge
-			if err := json.Unmarshal(wsMsg.Data, &edge); err == nil {
+			err := json.Unmarshal(wsMsg.Data, &edge)
+			if err == nil {
 				edge.InterviewID = sessionID
-				if err := p.diagRepo.SaveEdge(ctx, edge); err != nil {
+				err = p.diagRepo.SaveEdge(ctx, edge)
+				if err != nil {
 					log.Printf("Failed to save edge: %v", err)
 					_ = conn.WriteMessage(websocket.TextMessage, []byte("Error saving diagram edge"))
 				} else {
-					if err := p.diagramPub.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data); err != nil {
+					err = p.diagramPub.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data)
+					if err != nil {
 						log.Printf("Failed to publish diagram event: %v", err)
 					}
 				}
@@ -154,12 +172,15 @@ func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string,
 			var payload struct {
 				ID string `json:"id"`
 			}
-			if err := json.Unmarshal(wsMsg.Data, &payload); err == nil {
-				if err := p.diagRepo.DeleteEdge(ctx, sessionID, payload.ID); err != nil {
+			err := json.Unmarshal(wsMsg.Data, &payload)
+			if err == nil {
+				err = p.diagRepo.DeleteEdge(ctx, sessionID, payload.ID)
+				if err != nil {
 					log.Printf("Failed to delete edge: %v", err)
 					_ = conn.WriteMessage(websocket.TextMessage, []byte("Error deleting diagram edge"))
 				} else {
-					if err := p.diagramPub.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data); err != nil {
+					err = p.diagramPub.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data)
+					if err != nil {
 						log.Printf("Failed to publish diagram event: %v", err)
 					}
 				}

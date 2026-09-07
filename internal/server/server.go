@@ -40,7 +40,8 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	}
 
 	redisClient := cache.NewRedisClient()
-	if err := cache.Ping(redisClient); err != nil {
+	err = cache.Ping(redisClient)
+	if err != nil {
 		return nil, err
 	}
 

@@ -79,7 +79,8 @@ func (k *KafkaService) StartConsuming() {
 		}
 
 		var resp AIResponse
-		if err := json.Unmarshal(msg.Value, &resp); err == nil {
+		err = json.Unmarshal(msg.Value, &resp)
+		if err == nil {
 			payload := map[string]string{
 				"role":    "ai",
 				"content": resp.Response,

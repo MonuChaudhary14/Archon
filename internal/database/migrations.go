@@ -21,7 +21,8 @@ func RunMigrations(databaseURL string, migrationFS fs.FS) error {
 		return fmt.Errorf("failed to create migrate instance: %w", err)
 	}
 
-	if err := migrateInstance.Up(); err != nil && err != migrate.ErrNoChange {
+	err = migrateInstance.Up()
+	if err != nil && err != migrate.ErrNoChange {
 		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 

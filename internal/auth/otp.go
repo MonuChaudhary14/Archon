@@ -42,7 +42,8 @@ func HashOTP(otp string) string {
 
 func GenerateSecureToken() (string, error) {
 	bytes := make([]byte, 32)
-	if _, err := rand.Read(bytes); err != nil {
+	_, err := rand.Read(bytes)
+	if err != nil {
 		return "", err
 	}
 	return hex.EncodeToString(bytes), nil
