@@ -19,6 +19,7 @@ import (
 	"github.com/MonuChaudhary14/Archon/internal/settings"
 	"github.com/MonuChaudhary14/Archon/pkg/config"
 	"github.com/MonuChaudhary14/Archon/pkg/middleware"
+	"github.com/MonuChaudhary14/Archon/pkg/ratelimit"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -108,8 +109,16 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	settingsService := settings.NewService(settingsRepo)
 	settingsHandler := settings.NewHandler(settingsService)
 
+	apiLimiter := ratelimit.NewRedisSlidingWindowLimiter(redisClient)
+
 	v1 := router.Group("/api/v1")
 	v1.Use(auth.AuthMiddleware(jwtSecret, userRepo))
+	v1.Use(ratelimit.RateLimiterMiddleware(ratelimit.MiddlewareConfig{
+		Limiter: apiLimiter,
+		Limit:   120,
+		Window:  time.Minute,
+		KeyFunc: ratelimit.UserOrIPKeyFunc,
+	}))
 	{
 		interviewHandler.RegisterRoutes(v1)
 		diagramHandler.RegisterRoutes(v1)

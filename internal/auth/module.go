@@ -54,7 +54,7 @@ func Setup(db *pgxpool.Pool, redisClient *redis.Client, rg *gin.RouterGroup) (Us
 
 	authHandler := NewHandler(authService, oauthProviders, frontendURL)
 
-	RegisterRoutes(rg, authHandler, os.Getenv("JWT_SECRET"), userRepository)
+	RegisterRoutes(rg, authHandler, os.Getenv("JWT_SECRET"), userRepository, redisClient)
 
 	return userRepository, authHandler
 }

@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/MonuChaudhary14/Archon/pkg/resilience"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -16,13 +17,22 @@ type OutboxWorker struct {
 	db        *pgxpool.Pool
 	publisher MessagePublisher
 	interval  time.Duration
+	breaker   *resilience.CircuitBreaker[struct{}]
 }
 
 func NewOutboxWorker(db *pgxpool.Pool, publisher MessagePublisher, interval time.Duration) *OutboxWorker {
+	breaker := resilience.NewCircuitBreaker[struct{}](resilience.Config{
+		Name:         "kafka-outbox-publisher",
+		Threshold:    5,
+		FailureRatio: 0.5,
+		Timeout:      10 * time.Second,
+	})
+
 	return &OutboxWorker{
 		db:        db,
 		publisher: publisher,
 		interval:  interval,
+		breaker:   breaker,
 	}
 }
 
@@ -98,10 +108,18 @@ func (w *OutboxWorker) processPendingEvents(ctx context.Context) {
 	for _, ev := range events {
 		pubCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		topic := getTopicForEvent(ev.eventType)
-		err = w.publisher.PublishEvent(pubCtx, topic, []byte(ev.aggregateID), ev.payload)
+		_, err = w.breaker.Execute(func() (struct{}, error) {
+			pubErr := w.publisher.PublishEvent(pubCtx, topic, []byte(ev.aggregateID), ev.payload)
+			return struct{}{}, pubErr
+		})
 		cancel()
 
 		if err != nil {
+			if resilience.IsCircuitOpenError(err) {
+				log.Printf("Outbox worker paused event %s: circuit breaker is open", ev.id)
+				break
+			}
+
 			newRetries := ev.retries + 1
 			var updateQuery string
 			var args []interface{}

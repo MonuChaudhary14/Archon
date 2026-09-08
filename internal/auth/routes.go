@@ -1,13 +1,20 @@
 package auth
 
 import (
+	"time"
+
+	"github.com/MonuChaudhary14/Archon/pkg/ratelimit"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 )
 
-func RegisterRoutes(rg *gin.RouterGroup, handler *Handler, jwtSecret string, repo UserRepository) {
-
-	limiter := NewIPRateLimiter(5, 10)
-	rg.Use(RateLimiterMiddleware(limiter))
+func RegisterRoutes(rg *gin.RouterGroup, handler *Handler, jwtSecret string, repo UserRepository, redisClient redis.Cmdable) {
+	limiter := ratelimit.NewRedisSlidingWindowLimiter(redisClient)
+	rg.Use(ratelimit.RateLimiterMiddleware(ratelimit.MiddlewareConfig{
+		Limiter: limiter,
+		Limit:   10,
+		Window:  time.Minute,
+	}))
 
 	rg.POST("/register", handler.Register)
 	rg.POST("/verify-email", handler.VerifyEmail)
