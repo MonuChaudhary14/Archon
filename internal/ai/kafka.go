@@ -33,7 +33,7 @@ func NewKafkaService(hub ConnectionHub) *KafkaService {
 
 	writer := &kafka.Writer{
 		Addr:     kafka.TCP(brokers...),
-		Balancer: &kafka.LeastBytes{},
+		Balancer: &kafka.Murmur2Balancer{},
 	}
 
 	groupID := os.Getenv("KAFKA_GROUP_ID")
