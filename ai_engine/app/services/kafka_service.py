@@ -1,5 +1,6 @@
 import json
 import asyncio
+import time
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 from app.core.config import settings
 from app.core.telemetry import get_tracer, extract_trace_context_from_headers, inject_trace_context_to_headers
@@ -17,6 +18,16 @@ class KafkaConsumerService:
             bootstrap_servers=settings.KAFKA_BROKERS,
             group_id="ai_engine_group",
         )
+        self.retry_10s_consumer = AIOKafkaConsumer(
+            'ai.requests.retry.10s',
+            bootstrap_servers=settings.KAFKA_BROKERS,
+            group_id="ai_engine_retry_10s_group",
+        )
+        self.retry_60s_consumer = AIOKafkaConsumer(
+            'ai.requests.retry.60s',
+            bootstrap_servers=settings.KAFKA_BROKERS,
+            group_id="ai_engine_retry_60s_group",
+        )
         self.eval_consumer = AIOKafkaConsumer(
             'ai.evaluations',
             bootstrap_servers=settings.KAFKA_BROKERS,
@@ -33,6 +44,8 @@ class KafkaConsumerService:
 
     async def start(self):
         await self.consumer.start()
+        await self.retry_10s_consumer.start()
+        await self.retry_60s_consumer.start()
         await self.eval_consumer.start()
         await self.diagram_consumer.start()
         await self.producer.start()
@@ -40,11 +53,15 @@ class KafkaConsumerService:
         try:
             await asyncio.gather(
                 self.consume_chat_requests(),
+                self.consume_retry_requests(self.retry_10s_consumer, "10s"),
+                self.consume_retry_requests(self.retry_60s_consumer, "60s"),
                 self.consume_evaluation_requests(),
                 self.consume_diagram_events()
             )
         finally:
             await self.consumer.stop()
+            await self.retry_10s_consumer.stop()
+            await self.retry_60s_consumer.stop()
             await self.eval_consumer.stop()
             await self.diagram_consumer.stop()
             await self.producer.stop()
@@ -53,13 +70,76 @@ class KafkaConsumerService:
         async for msg in self.consumer:
             await self.process_message(msg)
 
+    async def consume_retry_requests(self, consumer: AIOKafkaConsumer, tier: str):
+        async for msg in consumer:
+            try:
+                data = json.loads(msg.value.decode('utf-8'))
+                retry_after = data.get("retry_after", 0)
+                now = time.time()
+                if now < retry_after:
+                    delay = retry_after - now
+                    await asyncio.sleep(delay)
+            except Exception:
+                pass
+            await self.process_message(msg)
+
     async def consume_evaluation_requests(self):
         async for msg in self.eval_consumer:
             await self.process_evaluation(msg)
 
+    async def handle_failure_and_retry(self, msg, error: Exception, data: dict):
+        retry_count = data.get("retry_count", 0)
+        session_id = data.get("session_id") or data.get("interview_id", "default")
+        out_headers = inject_trace_context_to_headers()
+        
+        if retry_count == 0:
+            data["retry_count"] = 1
+            data["retry_after"] = time.time() + 10
+            data["last_error"] = str(error)
+            print(f"Routing session {session_id} to ai.requests.retry.10s (attempt 1)")
+            await self.producer.send_and_wait(
+                'ai.requests.retry.10s',
+                json.dumps(data).encode('utf-8'),
+                headers=out_headers
+            )
+        elif retry_count == 1:
+            data["retry_count"] = 2
+            data["retry_after"] = time.time() + 60
+            data["last_error"] = str(error)
+            print(f"Routing session {session_id} to ai.requests.retry.60s (attempt 2)")
+            await self.producer.send_and_wait(
+                'ai.requests.retry.60s',
+                json.dumps(data).encode('utf-8'),
+                headers=out_headers
+            )
+        else:
+            print(f"Routing session {session_id} to ai.requests.dlq (terminal failure)")
+            dlq_payload = {
+                "original_topic": msg.topic,
+                "failed_at": time.time(),
+                "error": str(error),
+                "retry_count": retry_count,
+                "data": data,
+            }
+            await self.producer.send_and_wait(
+                'ai.requests.dlq',
+                json.dumps(dlq_payload).encode('utf-8'),
+                headers=out_headers
+            )
+            fallback_event = {
+                "session_id": session_id,
+                "response": "I encountered a technical issue processing your request. Please submit your message again.",
+            }
+            await self.producer.send_and_wait(
+                'ai.responses',
+                json.dumps(fallback_event).encode('utf-8'),
+                headers=out_headers
+            )
+
     async def process_message(self, msg):
         tracer = get_tracer()
         parent_ctx = extract_trace_context_from_headers(msg.headers)
+        data = None
         
         with tracer.start_as_current_span("ai_engine.process_chat_request", context=parent_ctx) as span:
             try:
@@ -104,7 +184,9 @@ class KafkaConsumerService:
 
             except Exception as e:
                 span.record_exception(e)
-                print(f"Error processing message: {e}")
+                print(f"Error processing message on {msg.topic}: {e}")
+                if data is not None:
+                    await self.handle_failure_and_retry(msg, e, data)
 
     async def process_evaluation(self, msg):
         tracer = get_tracer()
