@@ -81,7 +81,7 @@
             "type": "prometheus",
             "uid": "Prometheus"
           },
-          "expr": "sum(rate(http_requests_total[1m])) by (method, status)",
+          "expr": "sum(rate(http_requests_total[1m])) by (method, status) or sum(rate(http_request_duration_seconds_count[1m])) by (method, status)",
           "legendFormat": "{{method}} - {{status}}",
           "refId": "A"
         }
