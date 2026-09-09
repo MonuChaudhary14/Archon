@@ -92,8 +92,10 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	aiGroup := router.Group("/")
 	kafkaSvc := ai.Setup(aiGroup, redisClient, diagRepo, jwtSecret, userRepo, verifyOwner)
 
-	outboxWorker := interview.NewOutboxWorker(db, kafkaSvc, 2*time.Second)
-	go outboxWorker.Start(context.Background())
+	if os.Getenv("ENABLE_CDC") != "true" {
+		outboxWorker := interview.NewOutboxWorker(db, kafkaSvc, 2*time.Second)
+		go outboxWorker.Start(context.Background())
+	}
 
 	diagramHandler := diagram.NewHandler(diagRepo, verifyOwner)
 

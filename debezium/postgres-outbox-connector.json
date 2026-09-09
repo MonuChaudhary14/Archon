@@ -1,0 +1,23 @@
+{
+  "name": "archon-postgres-outbox-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "tasks.max": "1",
+    "plugin.name": "pgoutput",
+    "database.hostname": "${DB_HOST}",
+    "database.port": "${DB_PORT}",
+    "database.user": "${DB_USER}",
+    "database.password": "${DB_PASSWORD}",
+    "database.dbname": "${DB_NAME}",
+    "database.server.name": "archon_pg",
+    "topic.prefix": "archon_cdc",
+    "table.include.list": "public.outbox_events",
+    "tombstones.on.delete": "false",
+    "publication.autocreate.mode": "all_tables",
+    "slot.name": "debezium_archon_outbox_slot",
+    "transforms": "outbox",
+    "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+    "transforms.outbox.route.topic.replacement": "ai.requests",
+    "transforms.outbox.table.fields.additional.placement": "type:header:eventType"
+  }
+}
