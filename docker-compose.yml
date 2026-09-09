@@ -11,12 +11,16 @@ services:
       - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@db:${DB_PORT}/${DB_NAME}?sslmode=disable
       - REDIS_ADDR=${REDIS_ADDR}
       - KAFKA_BROKERS=${KAFKA_BROKERS}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=jaeger:4317
+      - OTEL_SERVICE_NAME=archon-api
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_started
       kafka:
+        condition: service_started
+      jaeger:
         condition: service_started
     restart: unless-stopped
 
@@ -85,6 +89,8 @@ services:
       - QDRANT_URL=http://qdrant:6333
       - TEMPORAL_HOST=${TEMPORAL_HOST}
       - TEMPORAL_NAMESPACE=${TEMPORAL_NAMESPACE}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=jaeger:4317
+      - OTEL_SERVICE_NAME=archon-ai-agent
     restart: unless-stopped
     depends_on:
       db:
@@ -95,6 +101,18 @@ services:
         condition: service_started
       temporal:
         condition: service_started
+      jaeger:
+        condition: service_started
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    restart: unless-stopped
 
   temporal:
     image: temporalio/auto-setup:1.23.1

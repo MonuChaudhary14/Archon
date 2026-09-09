@@ -20,6 +20,7 @@ import (
 	"github.com/MonuChaudhary14/Archon/pkg/config"
 	"github.com/MonuChaudhary14/Archon/pkg/middleware"
 	"github.com/MonuChaudhary14/Archon/pkg/ratelimit"
+	"github.com/MonuChaudhary14/Archon/pkg/telemetry"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -35,6 +36,11 @@ type Server struct {
 }
 
 func NewServer(cfg *config.Config) (*Server, error) {
+	_, err := telemetry.InitTracer(context.Background(), "", "")
+	if err != nil {
+		log.Printf("Telemetry init warning: %v\n", err)
+	}
+
 	db, err := database.NewPostgresPool(cfg.DatabaseURL)
 	if err != nil {
 		return nil, err
@@ -50,6 +56,8 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	log.Println("Redis Connected")
 
 	router := gin.Default()
+
+	router.Use(middleware.TracingMiddleware())
 
 	corsConfig := cors.DefaultConfig()
 	corsConfig.AllowOrigins = cfg.FrontendURLs

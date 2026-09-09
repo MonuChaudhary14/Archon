@@ -2,12 +2,14 @@ from contextlib import asynccontextmanager
 import asyncio
 from fastapi import FastAPI
 from app.core.config import settings
+from app.core.telemetry import init_telemetry
 from app.services.llm_service import LLMService
 from app.services.kafka_service import KafkaConsumerService
 from app.workflows.worker import TemporalEvaluationWorker
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    init_telemetry()
     llm_service = LLMService()
     temporal_worker = TemporalEvaluationWorker()
     kafka_service = KafkaConsumerService(llm_service, temporal_worker=temporal_worker)
