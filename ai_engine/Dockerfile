@@ -1,32 +1,16 @@
 FROM python:3.11-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    POETRY_VERSION=1.8.2 \
-    POETRY_HOME="/opt/poetry" \
-    POETRY_VIRTUALENVS_IN_PROJECT=true \
-    POETRY_NO_INTERACTION=1
-
-RUN sed -i 's/http:\/\/deb.debian.org/https:\/\/deb.debian.org/g' /etc/apt/sources.list || true && \
-    if [ -f /etc/apt/sources.list.d/debian.sources ]; then sed -i 's/http:\/\/deb.debian.org/https:\/\/deb.debian.org/g' /etc/apt/sources.list.d/debian.sources; fi && \
-    apt-get clean && \
-    apt-get update -o Acquire::BrokenProxy="true" \
-                   -o Acquire::http::No-Cache="true" \
-                   -o Acquire::Keep-Session-Broken="true" \
-                   -y && \
-    apt-get install -y --no-install-recommends curl && \
-    curl -sSL https://install.python-poetry.org | python3 - && \
-    rm -rf /var/lib/apt/lists/*
-ENV PATH="$POETRY_HOME/bin:$PATH"
+    PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
 
-COPY pyproject.toml poetry.lock* ./
+COPY requirements.txt ./
 
-RUN poetry lock && poetry install --no-root --only main
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY ./app ./app
 COPY seed_qdrant.py ./
 
 EXPOSE 8122
-CMD ["poetry", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8122"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8122"]
