@@ -38,6 +38,8 @@ CONNECTOR_CONFIG=$(cat <<EOF
     "slot.name": "debezium_archon_outbox_slot",
     "transforms": "outbox",
     "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+    "transforms.outbox.table.field.event.key": "aggregate_id",
+    "transforms.outbox.route.by.field": "aggregate_type",
     "transforms.outbox.route.topic.replacement": "ai.requests",
     "transforms.outbox.table.fields.additional.placement": "type:header:eventType"
   }
