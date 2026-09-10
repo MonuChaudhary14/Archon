@@ -1,6 +1,9 @@
 import os
+from functools import lru_cache
+from typing import List
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
+from fastembed import TextEmbedding
 from app.core.config import settings
 
 class KnowledgeService:
@@ -11,6 +14,14 @@ class KnowledgeService:
         
         self.client = QdrantClient(url=qdrant_url)
         self.collection_name = "system_design_concepts"
+        self._embedding_model = None
+        self._embedding_cache = {}
+
+    @property
+    def embedding_model(self) -> TextEmbedding:
+        if self._embedding_model is None:
+            self._embedding_model = TextEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        return self._embedding_model
 
     def seed_knowledge_base(self):
         try:
@@ -79,39 +90,23 @@ class KnowledgeService:
         except Exception as e:
             print(f"Error seeding Qdrant: {e}")
 
-    def _get_embedding(self, text: str) -> list:
-        token = settings.HUGGINGFACEHUB_API_TOKEN
-        if not token:
+    def _get_embedding(self, text: str) -> List[float]:
+        if not text:
             return [0.0] * 384
-            
-        model_id = "sentence-transformers/all-MiniLM-L6-v2"
-        url = f"https://api-inference.huggingface.co/models/{model_id}"
-        
-        import urllib.request
-        import json
-        
-        req = urllib.request.Request(
-            url,
-            data=json.dumps({"inputs": text}).encode("utf-8"),
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json"
-            },
-            method="POST"
-        )
-        
+
+        if text in self._embedding_cache:
+            return self._embedding_cache[text]
+
         try:
-            with urllib.request.urlopen(req, timeout=2.0) as response:
-                res = json.loads(response.read().decode("utf-8"))
-                
-                if isinstance(res, list):
-                    val = res
-                    while isinstance(val, list) and len(val) > 0 and isinstance(val[0], list):
-                        val = val[0]
-                    return val
-                return res
+            embeddings = list(self.embedding_model.embed([text]))
+            if embeddings and len(embeddings) > 0:
+                vector = embeddings[0].tolist()
+                if len(self._embedding_cache) < 1000:
+                    self._embedding_cache[text] = vector
+                return vector
+            return [0.0] * 384
         except Exception as e:
-            print(f"Embedding service unavailable ({e}). Continuing without RAG augmentation.")
+            print(f"FastEmbed execution error ({e}). Continuing without RAG augmentation.")
             return [0.0] * 384
 
     def retrieve_relevant_concepts(self, query: str, limit: int = 2) -> list:
