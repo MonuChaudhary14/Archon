@@ -106,6 +106,7 @@ func TestProcessSession(t *testing.T) {
 	processor := NewSessionProcessor(broker, broker, history, diagRepo, hub)
 
 	callCount := 0
+	var writtenMessages [][]byte
 	ws := &MockWebSocketConnection{
 		ReadMessageFunc: func() (int, []byte, error) {
 			callCount++
@@ -117,9 +118,17 @@ func TestProcessSession(t *testing.T) {
 				bytes, _ := json.Marshal(msg)
 				return 1, bytes, nil
 			}
+			if callCount == 2 {
+				msg := WSMessage{
+					Type: "ping",
+				}
+				bytes, _ := json.Marshal(msg)
+				return 1, bytes, nil
+			}
 			return 0, nil, errors.New("closing connection")
 		},
 		WriteMessageFunc: func(msgType int, data []byte) error {
+			writtenMessages = append(writtenMessages, data)
 			return nil
 		},
 	}
@@ -140,5 +149,28 @@ func TestProcessSession(t *testing.T) {
 	}
 	if broker.Prompt != "design a rate limiter" {
 		t.Errorf("expected prompt 'design a rate limiter', got '%s'", broker.Prompt)
+	}
+
+	foundThinking := false
+	foundPong := false
+	for _, raw := range writtenMessages {
+		var parsed map[string]interface{}
+		if json.Unmarshal(raw, &parsed) == nil {
+			if parsed["type"] == "status" {
+				if data, ok := parsed["data"].(map[string]interface{}); ok && data["status"] == "thinking" {
+					foundThinking = true
+				}
+			}
+			if parsed["type"] == "pong" {
+				foundPong = true
+			}
+		}
+	}
+
+	if !foundThinking {
+		t.Error("expected thinking status message to be sent to WebSocket client")
+	}
+	if !foundPong {
+		t.Error("expected pong message to be sent to WebSocket client")
 	}
 }

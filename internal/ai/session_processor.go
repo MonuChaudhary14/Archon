@@ -84,9 +84,10 @@ func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string,
 		var wsMsg WSMessage
 		err = json.Unmarshal(msg, &wsMsg)
 		if err != nil {
+			p.sendThinkingStatus(conn)
 			err = p.promptPub.PublishPrompt(sessionID, string(msg))
 			if err != nil {
-				_ = conn.WriteMessage(websocket.TextMessage, []byte("Error sending message to processing queue"))
+				p.sendErrorMessage(conn, "Error sending message to processing queue")
 			}
 			continue
 		}
@@ -109,9 +110,10 @@ func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string,
 					prompt = string(wsMsg.Data)
 				}
 			}
+			p.sendThinkingStatus(conn)
 			err = p.promptPub.PublishPrompt(sessionID, prompt)
 			if err != nil {
-				_ = conn.WriteMessage(websocket.TextMessage, []byte("Error sending message to processing queue"))
+				p.sendErrorMessage(conn, "Error sending message to processing queue")
 			}
 
 		case "node_added", "node_updated":
@@ -122,7 +124,7 @@ func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string,
 				err = p.diagRepo.SaveNode(ctx, node)
 				if err != nil {
 					log.Printf("Failed to save node: %v", err)
-					_ = conn.WriteMessage(websocket.TextMessage, []byte("Error saving diagram node"))
+					p.sendErrorMessage(conn, "Error saving diagram node")
 				} else {
 					err = p.diagramPub.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data)
 					if err != nil {
@@ -142,7 +144,7 @@ func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string,
 				err = p.diagRepo.DeleteNode(ctx, sessionID, payload.ID)
 				if err != nil {
 					log.Printf("Failed to delete node: %v", err)
-					_ = conn.WriteMessage(websocket.TextMessage, []byte("Error deleting diagram node"))
+					p.sendErrorMessage(conn, "Error deleting diagram node")
 				} else {
 					err = p.diagramPub.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data)
 					if err != nil {
@@ -159,7 +161,7 @@ func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string,
 				err = p.diagRepo.SaveEdge(ctx, edge)
 				if err != nil {
 					log.Printf("Failed to save edge: %v", err)
-					_ = conn.WriteMessage(websocket.TextMessage, []byte("Error saving diagram edge"))
+					p.sendErrorMessage(conn, "Error saving diagram edge")
 				} else {
 					err = p.diagramPub.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data)
 					if err != nil {
@@ -177,7 +179,7 @@ func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string,
 				err = p.diagRepo.DeleteEdge(ctx, sessionID, payload.ID)
 				if err != nil {
 					log.Printf("Failed to delete edge: %v", err)
-					_ = conn.WriteMessage(websocket.TextMessage, []byte("Error deleting diagram edge"))
+					p.sendErrorMessage(conn, "Error deleting diagram edge")
 				} else {
 					err = p.diagramPub.PublishDiagramEvent(sessionID, wsMsg.Type, wsMsg.Data)
 					if err != nil {
@@ -186,8 +188,39 @@ func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string,
 				}
 			}
 
+		case "ping":
+			pongPayload, _ := json.Marshal(map[string]string{
+				"type": "pong",
+			})
+			_ = conn.WriteMessage(websocket.TextMessage, pongPayload)
+
 		default:
 			log.Printf("Unknown WebSocket message type: %s", wsMsg.Type)
 		}
+	}
+}
+
+func (p *sessionProcessor) sendThinkingStatus(conn WebSocketConnection) {
+	payload, err := json.Marshal(map[string]interface{}{
+		"type": "status",
+		"data": map[string]string{
+			"status": "thinking",
+			"role":   "ai",
+		},
+	})
+	if err == nil {
+		_ = conn.WriteMessage(websocket.TextMessage, payload)
+	}
+}
+
+func (p *sessionProcessor) sendErrorMessage(conn WebSocketConnection, message string) {
+	payload, err := json.Marshal(map[string]interface{}{
+		"type": "error",
+		"data": map[string]string{
+			"message": message,
+		},
+	})
+	if err == nil {
+		_ = conn.WriteMessage(websocket.TextMessage, payload)
 	}
 }
