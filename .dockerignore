@@ -1,0 +1,11 @@
+.git
+.venv
+ai_engine/.venv
+ai_engine/__pycache__
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+scratch
+bin

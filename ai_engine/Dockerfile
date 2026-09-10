@@ -21,9 +21,9 @@ ENV PATH="$POETRY_HOME/bin:$PATH"
 
 WORKDIR /app
 
-COPY pyproject.toml ./
+COPY pyproject.toml poetry.lock* ./
 
-RUN poetry install --no-root --no-dev
+RUN poetry lock && poetry install --no-root --only main
 
 COPY ./app ./app
 COPY seed_qdrant.py ./
