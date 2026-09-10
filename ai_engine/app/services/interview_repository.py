@@ -26,12 +26,21 @@ SAVE_EVALUATION_ERROR_QUERY = """
     WHERE id = :session_id
 """
 
+import uuid
+
+def is_valid_uuid(val: str) -> bool:
+    try:
+        uuid.UUID(str(val))
+        return True
+    except (ValueError, AttributeError, TypeError):
+        return False
+
 class SQLInterviewRepository(InterviewRepository):
     def __init__(self, db: SQLDatabase):
         self.db = db
 
     def get_interview_context(self, session_id: str) -> Dict[str, Any] | None:
-        if not self.db:
+        if not self.db or not is_valid_uuid(session_id):
             return None
         try:
             with self.db._engine.connect() as conn:
@@ -48,7 +57,7 @@ class SQLInterviewRepository(InterviewRepository):
         return None
 
     def get_diagram_context(self, session_id: str) -> Dict[str, Any] | None:
-        if not self.db:
+        if not self.db or not is_valid_uuid(session_id):
             return None
         try:
             with self.db._engine.connect() as conn:

@@ -82,7 +82,6 @@ class KnowledgeService:
     def _get_embedding(self, text: str) -> list:
         token = settings.HUGGINGFACEHUB_API_TOKEN
         if not token:
-            print("Warning: HUGGINGFACEHUB_API_TOKEN is not set.")
             return [0.0] * 384
             
         model_id = "sentence-transformers/all-MiniLM-L6-v2"
@@ -90,7 +89,6 @@ class KnowledgeService:
         
         import urllib.request
         import json
-        import time
         
         req = urllib.request.Request(
             url,
@@ -102,33 +100,25 @@ class KnowledgeService:
             method="POST"
         )
         
-        for attempt in range(5):
-            try:
-                with urllib.request.urlopen(req, timeout=10) as response:
-                    res = json.loads(response.read().decode("utf-8"))
-                    
-                    if isinstance(res, dict) and "error" in res:
-                        estimated_time = int(res.get("estimated_time", 20))
-                        print(f"Model is loading, waiting {estimated_time} seconds...")
-                        time.sleep(estimated_time)
-                        continue
-                        
-                    if isinstance(res, list):
-                        val = res
-                        while isinstance(val, list) and len(val) > 0 and isinstance(val[0], list):
-                            val = val[0]
-                        return val
-                    return res
-            except Exception as e:
-                print(f"HF embedding error (attempt {attempt + 1}/5): {e}")
-                time.sleep(5)
+        try:
+            with urllib.request.urlopen(req, timeout=2.0) as response:
+                res = json.loads(response.read().decode("utf-8"))
                 
-        print("Failed to retrieve embedding after retries.")
-        return [0.0] * 384
+                if isinstance(res, list):
+                    val = res
+                    while isinstance(val, list) and len(val) > 0 and isinstance(val[0], list):
+                        val = val[0]
+                    return val
+                return res
+        except Exception as e:
+            print(f"Embedding service unavailable ({e}). Continuing without RAG augmentation.")
+            return [0.0] * 384
 
     def retrieve_relevant_concepts(self, query: str, limit: int = 2) -> list:
         try:
             query_vector = self._get_embedding(query)
+            if query_vector == [0.0] * 384:
+                return []
             
             results = self.client.search(
                 collection_name=self.collection_name,

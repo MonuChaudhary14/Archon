@@ -47,21 +47,26 @@ class LLMKeyRotator:
         self.cooldown_duration = 60.0
         self.cooldowns: Dict[str, float] = {}
 
-        self.gemini_keys: List[str] = self._parse_keys(settings.GEMINI_API_KEYS, settings.GEMINI_API_KEY)
-        self.groq_keys: List[str] = self._parse_keys(settings.GROQ_API_KEYS, settings.GROQ_API_KEY)
+        self.gemini_keys: List[str] = self._parse_keys(settings.GEMINI_API_KEYS, settings.GEMINI_API_KEY, provider="gemini")
+        self.groq_keys: List[str] = self._parse_keys(settings.GROQ_API_KEYS, settings.GROQ_API_KEY, provider="groq")
 
         self.gemini_index = 0
         self.groq_index = 0
 
-    def _parse_keys(self, keys_str: str, single_key: str) -> List[str]:
+    def _parse_keys(self, keys_str: str, single_key: str, provider: str = "") -> List[str]:
         keys = []
+        raw_keys = []
         if keys_str:
-            for k in keys_str.split(","):
-                k_clean = k.strip()
-                if k_clean and k_clean not in keys:
-                    keys.append(k_clean)
-        if single_key and single_key.strip() and single_key.strip() not in keys:
-            keys.append(single_key.strip())
+            raw_keys.extend([k.strip() for k in keys_str.split(",") if k.strip()])
+        if single_key and single_key.strip():
+            raw_keys.append(single_key.strip())
+
+        for k_clean in raw_keys:
+            if k_clean not in keys:
+                if provider == "gemini" and not k_clean.startswith("AIzaSy"):
+                    logger.warning(f"Ignoring invalid Gemini API key format: {k_clean[:8]}... (must begin with AIzaSy)")
+                    continue
+                keys.append(k_clean)
         return keys
 
     def _is_key_active(self, key: str) -> bool:

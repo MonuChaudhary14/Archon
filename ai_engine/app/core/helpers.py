@@ -1,12 +1,20 @@
+import uuid
 from langchain_community.chat_message_histories.redis import RedisChatMessageHistory
 from app.core.config import settings
 from sqlalchemy import text
+
+def is_valid_uuid(val: str) -> bool:
+    try:
+        uuid.UUID(str(val))
+        return True
+    except (ValueError, AttributeError, TypeError):
+        return False
 
 def get_message_history(session_id: str) -> RedisChatMessageHistory:
     return RedisChatMessageHistory(session_id, url=settings.REDIS_URL)
 
 def get_interview_context(db, session_id: str) -> dict | None:
-    if not db:
+    if not db or not is_valid_uuid(session_id):
         return None
     try:
         query = """
