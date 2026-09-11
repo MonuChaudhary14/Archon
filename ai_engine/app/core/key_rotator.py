@@ -82,7 +82,7 @@ class LLMKeyRotator:
             model_name = settings.GEMINI_MODEL or "gemini-flash-latest"
             return GeminiClient(api_key=api_key, model=model_name)
         elif provider == "groq":
-            model_name = settings.GROQ_MODEL or "llama-3.3-70b-versatile"
+            model_name = settings.GROQ_MODEL or "openai/gpt-oss-20b"
             return ChatGroq(
                 model=model_name,
                 groq_api_key=api_key,
@@ -142,6 +142,47 @@ class LLMKeyRotator:
                         self._mark_cooldown(key)
                     else:
                         logger.error(f"Error executing prompt with provider {provider}: {e}")
+                        break
+
+        if last_exception:
+            raise last_exception
+        raise RuntimeError("No active API keys available across all configured providers")
+
+    async def astream(self, prompt: Any):
+        primary_provider = settings.LLM_PROVIDER.lower() if settings.LLM_PROVIDER else "gemini"
+        secondary_provider = "groq" if primary_provider == "gemini" else "gemini"
+
+        providers_to_try = [primary_provider, secondary_provider]
+
+        last_exception = None
+
+        for provider in providers_to_try:
+            keys = self.gemini_keys if provider == "gemini" else self.groq_keys
+            attempts = len(keys)
+
+            for _ in range(max(1, attempts)):
+                key = self._get_active_key(provider)
+                if not key:
+                    break
+
+                try:
+                    client = self._create_client(provider, key)
+                    if hasattr(client, "astream"):
+                        async for chunk in client.astream(prompt):
+                            content = chunk.content if hasattr(chunk, "content") else str(chunk)
+                            if content:
+                                yield content
+                        return
+                    else:
+                        response = await client.ainvoke(prompt)
+                        yield response.content
+                        return
+                except Exception as e:
+                    last_exception = e
+                    if self._is_rate_limit_error(e):
+                        self._mark_cooldown(key)
+                    else:
+                        logger.error(f"Error streaming prompt with provider {provider}: {e}")
                         break
 
         if last_exception:

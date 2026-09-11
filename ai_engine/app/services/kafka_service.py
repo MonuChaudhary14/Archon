@@ -144,6 +144,7 @@ class KafkaConsumerService:
         with tracer.start_as_current_span("ai_engine.process_chat_request", context=parent_ctx) as span:
             try:
                 data = json.loads(msg.value.decode('utf-8'))
+                out_headers = inject_trace_context_to_headers()
                 
                 if "interview_id" in data and "question_id" in data:
                     session_id = data["interview_id"]
@@ -153,6 +154,16 @@ class KafkaConsumerService:
                     print(f"Processing INTERVIEW_STARTED event for session: {session_id}")
                     
                     response = await self.llm_service.generate_initial_greeting(question_id, session_id)
+                    result_event = {
+                        "session_id": session_id,
+                        "response": response,
+                        "is_final": True,
+                    }
+                    await self.producer.send_and_wait(
+                        'ai.responses',
+                        json.dumps(result_event).encode('utf-8'),
+                        headers=out_headers
+                    )
                 elif "status" in data and data["status"] == "SUBMITTED":
                     session_id = data["interview_id"]
                     span.set_attribute("session_id", session_id)
@@ -160,27 +171,47 @@ class KafkaConsumerService:
                     print(f"Processing INTERVIEW_SUBMITTED event for session: {session_id}")
                     
                     response = await self.llm_service.submit_interview(session_id)
+                    result_event = {
+                        "session_id": session_id,
+                        "response": response,
+                        "is_final": True,
+                    }
+                    await self.producer.send_and_wait(
+                        'ai.responses',
+                        json.dumps(result_event).encode('utf-8'),
+                        headers=out_headers
+                    )
                 else:
                     prompt = data.get("prompt")
                     session_id = data.get("session_id", "default")
                     span.set_attribute("session_id", session_id)
                     span.set_attribute("event_type", "CHAT_PROMPT")
-                    print(f"Processing request for session: {session_id}")
+                    print(f"Processing streaming request for session: {session_id}")
                     
-                    response = await self.llm_service.generate_response(prompt, session_id)
-
-                result_event = {
-                    "session_id": session_id,
-                    "response": response,
-                }
-
-                out_headers = inject_trace_context_to_headers()
-
-                await self.producer.send_and_wait(
-                    'ai.responses',
-                    json.dumps(result_event).encode('utf-8'),
-                    headers=out_headers
-                )
+                    async for event in self.llm_service.generate_response_stream(prompt, session_id):
+                        if not event.get("is_final"):
+                            chunk_event = {
+                                "session_id": session_id,
+                                "delta": event["delta"],
+                                "is_final": False,
+                            }
+                            await self.producer.send(
+                                'ai.responses',
+                                json.dumps(chunk_event).encode('utf-8'),
+                                headers=out_headers
+                            )
+                        else:
+                            final_event = {
+                                "session_id": session_id,
+                                "response": event["response"],
+                                "is_final": True,
+                                "state": event.get("state", ""),
+                            }
+                            await self.producer.send_and_wait(
+                                'ai.responses',
+                                json.dumps(final_event).encode('utf-8'),
+                                headers=out_headers
+                            )
 
             except Exception as e:
                 span.record_exception(e)

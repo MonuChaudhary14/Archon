@@ -290,6 +290,159 @@ class LLMService:
         except Exception as e:
             return f"Failed to generate response: {str(e)}"
 
+    async def generate_response_stream(self, prompt: str, session_id: str = "default"):
+        if not (settings.GEMINI_API_KEY or settings.GEMINI_API_KEYS or settings.GROQ_API_KEY or settings.GROQ_API_KEYS):
+            yield {"delta": "Error: No LLM API keys configured", "is_final": False}
+            yield {"response": "Error: No LLM API keys configured", "is_final": True, "state": "REQUIREMENTS"}
+            return
+
+        try:
+            title = "System Design"
+            difficulty = "Senior"
+            expected_topics = []
+
+            ctx = self.get_interview_context(session_id)
+            if ctx:
+                title = ctx["title"]
+                difficulty = ctx["difficulty"]
+                expected_topics = ctx["expected_topics"]
+
+            current_state = self.get_interview_state(session_id)
+
+            retrieved_concepts = self.knowledge_service.retrieve_relevant_concepts(prompt, limit=2)
+            concepts_context = ""
+            if retrieved_concepts:
+                concepts_context = "\n- ".join(retrieved_concepts)
+                concepts_context = f"\nRelevant System Design Reference Material:\n- {concepts_context}\n"
+
+            stages_guidelines = {
+                "REQUIREMENTS": (
+                    "Stage: Requirements Gathering.\n"
+                    "Your goal is to guide the candidate to define functional and non-functional requirements (e.g. read/write ratio, scale, active users, latency constraints).\n"
+                    "Do not let them skip to estimation or system design before they define functional and non-functional requirements.\n"
+                    "If they have successfully listed both functional and non-functional requirements, transition to 'ESTIMATION'."
+                ),
+                "ESTIMATION": (
+                    "Stage: Capacity Estimation.\n"
+                    "Your goal is to guide the candidate to estimate the scaling parameters (QPS, database size, network bandwidth, memory for caching) based on the requirements they gathered.\n"
+                    "If they have completed the calculations correctly (or made a reasonable attempt) and understand the scale, transition to 'HIGH_LEVEL'."
+                ),
+                "HIGH_LEVEL": (
+                    "Stage: High-Level Design.\n"
+                    "Your goal is to guide the candidate to describe the main architectural components (Load Balancer, Web Server, Database, Cache, Message Queue) and their connection flow.\n"
+                    "Once they have laid out the core components and APIs, transition to 'DEEP_DIVE'."
+                ),
+                "DEEP_DIVE": (
+                    "Stage: Detailed Component Design (Deep Dive).\n"
+                    "Your goal is to guide the candidate to discuss detailed scaling issues (e.g. database sharding/partitioning, replication, cache eviction, handling hotspot users, data consistency, rate limiting).\n"
+                    "Once you have deep dived into 2-3 critical areas of the system design, transition to 'COMPLETED'."
+                ),
+                "COMPLETED": (
+                    "Stage: Interview Completed.\n"
+                    "The interview is finished. Politely wrap up the conversation, thank the candidate, and inform them that their report is being generated."
+                )
+            }
+
+            current_stage_info = stages_guidelines.get(current_state, stages_guidelines["REQUIREMENTS"])
+
+            system_prompt = (
+                f"You are a professional system design interviewer. "
+                f"You are conducting a system design interview with a candidate for the topic: '{title}' (Difficulty: {difficulty}). "
+                f"Expected Topics/Concepts to cover: {expected_topics}.\n\n"
+                f"{concepts_context}\n"
+                f"Current Interview State: {current_state}\n"
+                f"{current_stage_info}\n\n"
+                f"Guidelines:\n"
+                f"1. Adopt a realistic, helpful but demanding interviewer persona.\n"
+                f"2. Keep your conversational responses concise (maximum 3-4 sentences). Focus on asking one clear follow-up question or prompting the candidate for details related to the current stage.\n"
+                f"3. Evaluate the candidate's input to decide if they should stay in {current_state} or transition to the next stage.\n\n"
+                f"Provide your conversational response directly. At the end of your response on a new line, append the stage tag: [STAGE: <REQUIREMENTS|ESTIMATION|HIGH_LEVEL|DEEP_DIVE|COMPLETED> | REASON: <brief reason>]"
+            )
+
+            diagram_ctx = self.repo.get_diagram_context(session_id)
+            diagram_info = ""
+            if diagram_ctx and (diagram_ctx["nodes"] or diagram_ctx["edges"]):
+                parsed = self.diagram_service.parse_diagram_to_text(diagram_ctx)
+                diagram_info = f"\nCandidate's current whiteboard diagram:\n{parsed}"
+
+            history = None
+            if settings.REDIS_URL:
+                history = self.get_message_history(session_id)
+                messages = history.messages
+                context_list = []
+                for msg in messages[-8:]:
+                    context_list.append(f"{msg.type}: {msg.content}")
+                context = "\n".join(context_list)
+                full_prompt = (
+                    f"{system_prompt}\n\n"
+                    f"{diagram_info}\n\n"
+                    f"Previous Conversation:\n{context}\n\n"
+                    f"Candidate's Message: {prompt}\n"
+                )
+            else:
+                full_prompt = (
+                    f"{system_prompt}\n\n"
+                    f"{diagram_info}\n\n"
+                    f"Candidate's Message: {prompt}\n"
+                )
+
+            accumulated_chunks = []
+            tag_buffer = ""
+            tag_detected = False
+
+            async for chunk in self.llm.astream(full_prompt):
+                accumulated_chunks.append(chunk)
+                
+                if tag_detected:
+                    continue
+
+                if "[" in chunk or tag_buffer:
+                    tag_buffer += chunk
+                    if "[STAGE:" in tag_buffer or "[stage:" in tag_buffer.lower():
+                        tag_detected = True
+                        continue
+                    elif len(tag_buffer) > 30:
+                        yield {"delta": tag_buffer, "is_final": False}
+                        tag_buffer = ""
+                else:
+                    yield {"delta": chunk, "is_final": False}
+
+            if tag_buffer and not tag_detected:
+                yield {"delta": tag_buffer, "is_final": False}
+
+            full_text = "".join(accumulated_chunks)
+            clean_output = full_text
+            next_state = current_state
+
+            stage_match = re.search(r"\[STAGE:\s*([A-Z_]+)(?:\s*\|\s*REASON:\s*([^\]]*))?\]", full_text, re.IGNORECASE)
+            if stage_match:
+                extracted_stage = stage_match.group(1).upper().strip()
+                if extracted_stage in ("REQUIREMENTS", "ESTIMATION", "HIGH_LEVEL", "DEEP_DIVE", "COMPLETED"):
+                    next_state = extracted_stage
+                clean_output = full_text[:stage_match.start()].strip()
+            elif clean_output.startswith("```"):
+                parsed_json = self._parse_json_response(clean_output)
+                if parsed_json:
+                    next_state = parsed_json.get("next_state", current_state)
+                    clean_output = parsed_json.get("response", clean_output)
+
+            if next_state != current_state:
+                print(f"State transition for {session_id}: {current_state} -> {next_state}")
+                self.set_interview_state(session_id, next_state)
+                if next_state == "COMPLETED":
+                    await self.publish_evaluation_request(session_id)
+
+            if history:
+                history.add_user_message(prompt)
+                history.add_ai_message(clean_output)
+
+            yield {"response": clean_output, "is_final": True, "state": next_state}
+
+        except Exception as e:
+            err_msg = f"Failed to generate response: {str(e)}"
+            yield {"delta": err_msg, "is_final": False}
+            yield {"response": err_msg, "is_final": True, "state": "REQUIREMENTS"}
+
     async def submit_interview(self, session_id: str) -> str:
         self.set_interview_state(session_id, "COMPLETED")
         await self.publish_evaluation_request(session_id)

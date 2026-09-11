@@ -52,7 +52,10 @@ type KafkaService struct {
 
 type AIResponse struct {
 	SessionID string `json:"session_id"`
-	Response  string `json:"response"`
+	Delta     string `json:"delta,omitempty"`
+	Response  string `json:"response,omitempty"`
+	IsFinal   bool   `json:"is_final"`
+	State     string `json:"state,omitempty"`
 }
 
 func NewKafkaService(hub ConnectionHub) *KafkaService {
@@ -169,16 +172,38 @@ func (k *KafkaService) StartConsuming() {
 		err = json.Unmarshal(msg.Value, &resp)
 		if err == nil {
 			span.SetAttributes(attribute.String("session_id", resp.SessionID))
-			payload := map[string]string{
-				"role":    "ai",
-				"content": resp.Response,
-			}
-			payloadBytes, marshalErr := json.Marshal(payload)
-			if marshalErr == nil {
-				k.hub.SendMessage(resp.SessionID, payloadBytes)
-			} else {
-				span.RecordError(marshalErr)
-				log.Printf("Failed to marshal live response JSON: %v\n", marshalErr)
+
+			if resp.Delta != "" && !resp.IsFinal {
+				chunkPayload := map[string]interface{}{
+					"type": "chunk",
+					"data": map[string]string{
+						"role":  "ai",
+						"delta": resp.Delta,
+					},
+				}
+				if payloadBytes, marshalErr := json.Marshal(chunkPayload); marshalErr == nil {
+					k.hub.SendMessage(resp.SessionID, payloadBytes)
+				}
+			} else if resp.IsFinal || resp.Response != "" {
+				chatPayload := map[string]interface{}{
+					"type": "chat",
+					"data": map[string]string{
+						"role":    "ai",
+						"content": resp.Response,
+						"state":   resp.State,
+					},
+				}
+				if payloadBytes, marshalErr := json.Marshal(chatPayload); marshalErr == nil {
+					k.hub.SendMessage(resp.SessionID, payloadBytes)
+				}
+
+				legacyPayload := map[string]string{
+					"role":    "ai",
+					"content": resp.Response,
+				}
+				if payloadBytes, marshalErr := json.Marshal(legacyPayload); marshalErr == nil {
+					k.hub.SendMessage(resp.SessionID, payloadBytes)
+				}
 			}
 		} else {
 			span.RecordError(err)
