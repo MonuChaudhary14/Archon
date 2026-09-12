@@ -144,6 +144,16 @@ class KafkaConsumerService:
         with tracer.start_as_current_span("ai_engine.process_chat_request", context=parent_ctx) as span:
             try:
                 data = json.loads(msg.value.decode('utf-8'))
+                if isinstance(data, dict) and "payload" in data:
+                    payload_val = data["payload"]
+                    if isinstance(payload_val, str):
+                        try:
+                            data = json.loads(payload_val)
+                        except Exception:
+                            pass
+                    elif isinstance(payload_val, dict):
+                        data = payload_val
+
                 out_headers = inject_trace_context_to_headers()
                 
                 if "interview_id" in data and "question_id" in data:
@@ -226,6 +236,16 @@ class KafkaConsumerService:
         with tracer.start_as_current_span("ai_engine.process_evaluation", context=parent_ctx) as span:
             try:
                 data = json.loads(msg.value.decode('utf-8'))
+                if isinstance(data, dict) and "payload" in data:
+                    payload_val = data["payload"]
+                    if isinstance(payload_val, str):
+                        try:
+                            data = json.loads(payload_val)
+                        except Exception:
+                            pass
+                    elif isinstance(payload_val, dict):
+                        data = payload_val
+
                 session_id = data.get("session_id")
                 if not session_id:
                     print("Invalid evaluation request: session_id missing")
@@ -267,6 +287,16 @@ class KafkaConsumerService:
         async for msg in self.diagram_consumer:
             try:
                 data = json.loads(msg.value.decode('utf-8'))
+                if isinstance(data, dict) and "payload" in data:
+                    payload_val = data["payload"]
+                    if isinstance(payload_val, str):
+                        try:
+                            data = json.loads(payload_val)
+                        except Exception:
+                            pass
+                    elif isinstance(payload_val, dict):
+                        data = payload_val
+
                 session_id = data.get("session_id")
                 event_type = data.get("event_type")
                 if not session_id or not event_type:
@@ -291,7 +321,7 @@ class KafkaConsumerService:
             span.set_attribute("session_id", session_id)
             try:
                 await asyncio.sleep(delay)
-                diagram_ctx = self.llm_service.eval_service.get_diagram_context(session_id)
+                diagram_ctx = self.llm_service.repo.get_diagram_context(session_id)
                 if not diagram_ctx:
                     return
 

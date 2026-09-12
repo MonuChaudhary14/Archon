@@ -11,6 +11,9 @@ class EvaluationService:
     def get_message_history(self, session_id: str):
         return get_message_history(session_id)
 
+    def get_diagram_context(self, session_id: str):
+        return self.repo.get_diagram_context(session_id)
+
     def _parse_json_response(self, content: str):
         content = content.strip()
         if content.startswith("```"):
