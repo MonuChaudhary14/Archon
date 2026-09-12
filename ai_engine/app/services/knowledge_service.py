@@ -16,6 +16,16 @@ class KnowledgeService:
         self.collection_name = "system_design_concepts"
         self._embedding_model = None
         self._embedding_cache = {}
+        self._ensure_collection_exists()
+
+    def _ensure_collection_exists(self):
+        try:
+            collections = self.client.get_collections().collections
+            exists = any(c.name == self.collection_name for c in collections)
+            if not exists:
+                self.seed_knowledge_base()
+        except Exception:
+            pass
 
     @property
     def embedding_model(self) -> TextEmbedding:
@@ -28,15 +38,11 @@ class KnowledgeService:
             collections = self.client.get_collections().collections
             exists = any(c.name == self.collection_name for c in collections)
             
-            if exists:
-                print(f"Qdrant collection '{self.collection_name}' already exists. Deleting it to ensure clean seeding...")
-                self.client.delete_collection(self.collection_name)
-                
-            print(f"Creating Qdrant collection: {self.collection_name}")
-            self.client.create_collection(
-                collection_name=self.collection_name,
-                vectors_config=VectorParams(size=384, distance=Distance.COSINE)
-            )
+            if not exists:
+                self.client.create_collection(
+                    collection_name=self.collection_name,
+                    vectors_config=VectorParams(size=384, distance=Distance.COSINE)
+                )
                 
             concepts = [
                 {

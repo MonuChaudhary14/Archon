@@ -18,10 +18,21 @@ urllib3_cn.allowed_gai_family = _allowed_gai_family
 logger = logging.getLogger(__name__)
 
 class GeminiClient:
-    def __init__(self, api_key: str, model: str = "gemini-flash-latest"):
+    def __init__(self, api_key: str, model: Optional[str] = None):
         self.api_key = api_key
-        self.model = model
-        self.url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent?key={self.api_key}"
+        preferred_model = model or settings.GEMINI_MODEL or "gemini-3.5-flash-lite"
+        self.fallback_models = [
+            preferred_model,
+            "gemini-3.5-flash-lite",
+            "gemini-3.1-flash-lite",
+            "gemini-3.5-flash",
+            "gemini-3.6-flash",
+            "gemini-3.7-flash",
+            "gemini-2.5-flash-lite",
+            "gemini-3.8-flash",
+        ]
+        seen = set()
+        self.models = [m for m in self.fallback_models if not (m in seen or seen.add(m))]
 
     async def ainvoke(self, prompt: Any) -> Any:
         prompt_text = prompt if isinstance(prompt, str) else str(prompt)
@@ -35,20 +46,29 @@ class GeminiClient:
             ]
         }
         loop = asyncio.get_running_loop()
-        res = await loop.run_in_executor(
-            None,
-            lambda: requests.post(self.url, json=payload, timeout=30)
-        )
-        
-        if res.status_code == 200:
-            data = res.json()
+        last_error = None
+        for m in self.models:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={self.api_key}"
             try:
-                text = data["candidates"][0]["content"]["parts"][0]["text"]
-                return SimpleNamespace(content=text)
-            except (KeyError, IndexError):
-                raise ValueError(f"Unexpected Gemini API response structure: {data}")
-        else:
-            raise RuntimeError(f"Gemini API HTTP {res.status_code}: {res.text}")
+                res = await loop.run_in_executor(
+                    None,
+                    lambda u=url: requests.post(u, json=payload, timeout=30)
+                )
+                if res.status_code == 200:
+                    data = res.json()
+                    text = data["candidates"][0]["content"]["parts"][0]["text"]
+                    return SimpleNamespace(content=text)
+                elif res.status_code in (429, 404, 500, 503):
+                    last_error = RuntimeError(f"Gemini model {m} returned {res.status_code}: {res.text}")
+                    continue
+                else:
+                    raise RuntimeError(f"Gemini API HTTP {res.status_code}: {res.text}")
+            except Exception as e:
+                last_error = e
+                continue
+        if last_error:
+            raise last_error
+        raise RuntimeError("All Gemini models exhausted for this key")
 
 class NvidiaClient:
     def __init__(self, api_key: str, model: str = "meta/llama-3.2-11b-vision-instruct", base_url: str = "https://integrate.api.nvidia.com/v1"):

@@ -110,6 +110,8 @@ services:
       - TEMPORAL_NAMESPACE=${TEMPORAL_NAMESPACE}
       - OTEL_EXPORTER_OTLP_ENDPOINT=jaeger:4317
       - OTEL_SERVICE_NAME=archon-ai-agent
+    volumes:
+      - ./ai_engine:/app
     restart: unless-stopped
     depends_on:
       db:
