@@ -196,14 +196,6 @@ func (k *KafkaService) StartConsuming() {
 				if payloadBytes, marshalErr := json.Marshal(chatPayload); marshalErr == nil {
 					k.hub.SendMessage(resp.SessionID, payloadBytes)
 				}
-
-				legacyPayload := map[string]string{
-					"role":    "ai",
-					"content": resp.Response,
-				}
-				if payloadBytes, marshalErr := json.Marshal(legacyPayload); marshalErr == nil {
-					k.hub.SendMessage(resp.SessionID, payloadBytes)
-				}
 			}
 		} else {
 			span.RecordError(err)
