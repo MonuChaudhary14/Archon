@@ -58,11 +58,13 @@ func (h *Handler) StartInterview(c *gin.Context) {
 	}
 
 	normDiff, valid := normalizeDifficulty(req.Difficulty)
-	if !valid {
+	if !valid && (req.QuestionID == nil || *req.QuestionID == "") {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid difficulty. Allowed values are 'Beginner' (or 'easy'), 'Intermediate' (or 'medium'), 'Senior' (or 'hard'), 'Staff'"})
 		return
 	}
-	req.Difficulty = normDiff
+	if valid {
+		req.Difficulty = normDiff
+	}
 
 	question, sessionID, err := h.service.StartInterview(c.Request.Context(), userID, req)
 	if err != nil {

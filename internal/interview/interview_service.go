@@ -22,9 +22,6 @@ func (s *service) StartInterview(ctx context.Context, userID int, req CreateInte
 		if err != nil {
 			return nil, "", fmt.Errorf("could not find specific question: %w", err)
 		}
-		if question.Difficulty != req.Difficulty {
-			return nil, "", fmt.Errorf("question difficulty mismatch: requested %s, but question is %s", req.Difficulty, question.Difficulty)
-		}
 	} else {
 		question, err = s.repo.GetRandomQuestion(ctx, req.Difficulty)
 		if err != nil {
