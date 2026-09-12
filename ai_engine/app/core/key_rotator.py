@@ -70,6 +70,59 @@ class GeminiClient:
             raise last_error
         raise RuntimeError("All Gemini models exhausted for this key")
 
+    async def astream(self, prompt: Any):
+        prompt_text = prompt if isinstance(prompt, str) else str(prompt)
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {"text": prompt_text}
+                    ]
+                }
+            ]
+        }
+        loop = asyncio.get_running_loop()
+        last_error = None
+        for m in self.models:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:streamGenerateContent?alt=sse&key={self.api_key}"
+            def _stream_request(u=url):
+                return requests.post(u, json=payload, stream=True, timeout=30)
+
+            try:
+                res = await loop.run_in_executor(None, _stream_request)
+                if res.status_code == 200:
+                    yielded_any = False
+                    for line in res.iter_lines():
+                        if line:
+                            decoded = line.decode("utf-8").strip()
+                            if decoded.startswith("data: "):
+                                data_str = decoded[6:].strip()
+                                try:
+                                    chunk_json = json.loads(data_str)
+                                    candidates = chunk_json.get("candidates", [])
+                                    if candidates:
+                                        parts = candidates[0].get("content", {}).get("parts", [])
+                                        for part in parts:
+                                            delta_text = part.get("text", "")
+                                            if delta_text:
+                                                yielded_any = True
+                                                yield delta_text
+                                except Exception:
+                                    pass
+                    if yielded_any:
+                        return
+                elif res.status_code in (429, 404, 500, 503):
+                    last_error = RuntimeError(f"Gemini model {m} stream returned {res.status_code}: {res.text}")
+                    continue
+                else:
+                    raise RuntimeError(f"Gemini API HTTP {res.status_code}: {res.text}")
+            except Exception as e:
+                last_error = e
+                continue
+        if last_error:
+            raise last_error
+        raise RuntimeError("All Gemini models exhausted for this key during stream")
+
 class NvidiaClient:
     def __init__(self, api_key: str, model: str = "meta/llama-3.2-11b-vision-instruct", base_url: str = "https://integrate.api.nvidia.com/v1"):
         self.api_key = api_key
