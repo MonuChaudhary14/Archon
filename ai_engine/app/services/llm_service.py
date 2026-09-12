@@ -140,7 +140,7 @@ class LLMService:
         )
 
         try:
-            response = await self.llm.ainvoke(system_prompt)
+            response = await asyncio.wait_for(self.llm.ainvoke(system_prompt), timeout=6.0)
             output = response.content
 
             if settings.REDIS_URL:

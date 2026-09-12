@@ -25,11 +25,7 @@ class GeminiClient:
             preferred_model,
             "gemini-3.5-flash-lite",
             "gemini-3.1-flash-lite",
-            "gemini-3.5-flash",
-            "gemini-3.6-flash",
-            "gemini-3.7-flash",
             "gemini-2.5-flash-lite",
-            "gemini-3.8-flash",
         ]
         seen = set()
         self.models = [m for m in self.fallback_models if not (m in seen or seen.add(m))]
@@ -52,7 +48,7 @@ class GeminiClient:
             try:
                 res = await loop.run_in_executor(
                     None,
-                    lambda u=url: requests.post(u, json=payload, timeout=30)
+                    lambda u=url: requests.post(u, json=payload, timeout=8)
                 )
                 if res.status_code == 200:
                     data = res.json()
@@ -86,7 +82,7 @@ class GeminiClient:
         for m in self.models:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:streamGenerateContent?alt=sse&key={self.api_key}"
             def _stream_request(u=url):
-                return requests.post(u, json=payload, stream=True, timeout=30)
+                return requests.post(u, json=payload, stream=True, timeout=8)
 
             try:
                 res = await loop.run_in_executor(None, _stream_request)
@@ -145,7 +141,7 @@ class NvidiaClient:
         loop = asyncio.get_running_loop()
         res = await loop.run_in_executor(
             None,
-            lambda: requests.post(self.url, headers=self.headers, json=payload, timeout=45)
+            lambda: requests.post(self.url, headers=self.headers, json=payload, timeout=10)
         )
         if res.status_code == 200:
             data = res.json()
@@ -169,7 +165,7 @@ class NvidiaClient:
         loop = asyncio.get_running_loop()
         def _stream_request():
             headers = {**self.headers, "Accept": "text/event-stream"}
-            return requests.post(self.url, headers=headers, json=payload, stream=True, timeout=45)
+            return requests.post(self.url, headers=headers, json=payload, stream=True, timeout=10)
 
         res = await loop.run_in_executor(None, _stream_request)
         if res.status_code != 200:
