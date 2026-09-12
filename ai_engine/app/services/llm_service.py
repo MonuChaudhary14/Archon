@@ -1,3 +1,4 @@
+from sqlalchemy import text
 from app.core.key_rotator import LLMKeyRotator
 from app.core.config import settings
 from langchain_community.utilities.sql_database import SQLDatabase
@@ -78,7 +79,6 @@ class LLMService:
         if not self.db:
             return None
         try:
-            from sqlalchemy import text
             with self.db._engine.connect() as conn:
                 result = conn.execute(
                     text("SELECT title, difficulty FROM questions WHERE id = :id"),
