@@ -61,9 +61,12 @@ func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string,
 				if ok {
 					content, ok := data["content"].(string)
 					if ok {
-						payload := map[string]string{
-							"role":    role,
-							"content": content,
+						payload := map[string]interface{}{
+							"type": "chat",
+							"data": map[string]string{
+								"role":    role,
+								"content": content,
+							},
 						}
 						payloadBytes, err := json.Marshal(payload)
 						if err == nil {

@@ -63,9 +63,6 @@ class LLMKeyRotator:
 
         for k_clean in raw_keys:
             if k_clean not in keys:
-                if provider == "gemini" and not k_clean.startswith("AIzaSy"):
-                    logger.warning(f"Ignoring invalid Gemini API key format: {k_clean[:8]}... (must begin with AIzaSy)")
-                    continue
                 keys.append(k_clean)
         return keys
 
