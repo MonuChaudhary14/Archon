@@ -12,20 +12,25 @@ class KnowledgeService:
         if not qdrant_url:
             qdrant_url = "http://localhost:6333"
         
-        self.client = QdrantClient(url=qdrant_url)
+        self.client = QdrantClient(url=qdrant_url, timeout=2.0)
         self.collection_name = "system_design_concepts"
         self._embedding_model = None
         self._embedding_cache = {}
+        self._seeded = False
         self._ensure_collection_exists()
 
-    def _ensure_collection_exists(self):
+    def _ensure_collection_exists(self) -> bool:
+        if self._seeded:
+            return True
         try:
             collections = self.client.get_collections().collections
             exists = any(c.name == self.collection_name for c in collections)
             if not exists:
                 self.seed_knowledge_base()
+            self._seeded = True
+            return True
         except Exception:
-            pass
+            return False
 
     @property
     def embedding_model(self) -> TextEmbedding:
@@ -117,6 +122,8 @@ class KnowledgeService:
 
     def retrieve_relevant_concepts(self, query: str, limit: int = 2) -> list:
         try:
+            if not self._ensure_collection_exists():
+                return []
             query_vector = self._get_embedding(query)
             if query_vector == [0.0] * 384:
                 return []
