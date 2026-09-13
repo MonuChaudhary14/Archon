@@ -20,13 +20,12 @@ logger = logging.getLogger(__name__)
 class GeminiClient:
     def __init__(self, api_key: str, model: Optional[str] = None):
         self.api_key = api_key
-        preferred_model = model or settings.GEMINI_MODEL or "gemini-2.5-flash"
+        preferred_model = model or settings.GEMINI_MODEL or "gemini-3.5-flash-lite"
         self.fallback_models = [
             preferred_model,
+            "gemini-3.5-flash-lite",
             "gemini-2.5-flash",
-            "gemini-2.0-flash",
             "gemini-1.5-flash",
-            "gemini-2.0-flash-lite",
         ]
         seen = set()
         self.models = [m for m in self.fallback_models if not (m in seen or seen.add(m))]
@@ -262,7 +261,7 @@ class LLMKeyRotator:
 
     def _create_client(self, provider: str, api_key: str):
         if provider == "gemini":
-            model_name = settings.GEMINI_MODEL or "gemini-2.5-flash"
+            model_name = settings.GEMINI_MODEL or "gemini-3.5-flash-lite"
             return GeminiClient(api_key=api_key, model=model_name)
         elif provider == "groq":
             model_name = settings.GROQ_MODEL or "llama-3.3-70b-versatile"
