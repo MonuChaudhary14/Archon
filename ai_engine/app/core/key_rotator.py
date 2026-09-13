@@ -24,8 +24,8 @@ class GeminiClient:
         self.fallback_models = [
             preferred_model,
             "gemini-3.5-flash-lite",
-            "gemini-3.1-flash-lite",
-            "gemini-2.5-flash-lite",
+            "gemini-flash-lite-latest",
+            "gemini-3-flash-preview",
         ]
         seen = set()
         self.models = [m for m in self.fallback_models if not (m in seen or seen.add(m))]
@@ -88,23 +88,43 @@ class GeminiClient:
                 res = await loop.run_in_executor(None, _stream_request)
                 if res.status_code == 200:
                     yielded_any = False
-                    for line in res.iter_lines():
-                        if line:
-                            decoded = line.decode("utf-8").strip()
-                            if decoded.startswith("data: "):
-                                data_str = decoded[6:].strip()
-                                try:
-                                    chunk_json = json.loads(data_str)
-                                    candidates = chunk_json.get("candidates", [])
-                                    if candidates:
-                                        parts = candidates[0].get("content", {}).get("parts", [])
-                                        for part in parts:
-                                            delta_text = part.get("text", "")
-                                            if delta_text:
-                                                yielded_any = True
-                                                yield delta_text
-                                except Exception:
-                                    pass
+                    q = asyncio.Queue()
+                    sentinel = object()
+
+                    def _reader():
+                        try:
+                            for line in res.iter_lines():
+                                if line:
+                                    loop.call_soon_threadsafe(q.put_nowait, line)
+                        except Exception as read_err:
+                            loop.call_soon_threadsafe(q.put_nowait, read_err)
+                        finally:
+                            loop.call_soon_threadsafe(q.put_nowait, sentinel)
+
+                    loop.run_in_executor(None, _reader)
+
+                    while True:
+                        item = await q.get()
+                        if item is sentinel:
+                            break
+                        if isinstance(item, Exception):
+                            break
+                        decoded = item.decode("utf-8").strip()
+                        if decoded.startswith("data: "):
+                            data_str = decoded[6:].strip()
+                            try:
+                                chunk_json = json.loads(data_str)
+                                candidates = chunk_json.get("candidates", [])
+                                if candidates:
+                                    parts = candidates[0].get("content", {}).get("parts", [])
+                                    for part in parts:
+                                        delta_text = part.get("text", "")
+                                        if delta_text:
+                                            yielded_any = True
+                                            yield delta_text
+                            except Exception:
+                                pass
+
                     if yielded_any:
                         return
                 elif res.status_code in (429, 404, 500, 503):
@@ -222,10 +242,10 @@ class LLMKeyRotator:
 
     def _create_client(self, provider: str, api_key: str):
         if provider == "gemini":
-            model_name = settings.GEMINI_MODEL or "gemini-flash-latest"
+            model_name = settings.GEMINI_MODEL or "gemini-3.5-flash-lite"
             return GeminiClient(api_key=api_key, model=model_name)
         elif provider == "groq":
-            model_name = settings.GROQ_MODEL or "openai/gpt-oss-20b"
+            model_name = settings.GROQ_MODEL or "llama-3.3-70b-versatile"
             return ChatGroq(
                 model=model_name,
                 groq_api_key=api_key,

@@ -87,17 +87,17 @@ services:
     build:
       context : ./ai_engine
     ports:
-      - "8122:8122"
+      - "${HOST_AI_AGENT_PORT}:${AI_AGENT_PORT}"
     env_file:
       - ./.env
     environment:
       - LLM_PROVIDER=${LLM_PROVIDER:-gemini}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - GEMINI_API_KEYS=${GEMINI_API_KEYS:-}
-      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-flash-latest}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-3.5-flash-lite}
       - GROQ_API_KEY=${GROQ_API_KEY:-}
       - GROQ_API_KEYS=${GROQ_API_KEYS:-}
-      - GROQ_MODEL=${GROQ_MODEL:-qwen/qwen3.8-27b}
+      - GROQ_MODEL=${GROQ_MODEL:-llama-3.3-70b-versatile}
       - NVIDIA_API_KEY=${NVIDIA_API_KEY:-}
       - NVIDIA_API_KEYS=${NVIDIA_API_KEYS:-}
       - NVIDIA_MODEL=${NVIDIA_MODEL:-meta/llama-3.2-11b-vision-instruct}
@@ -105,7 +105,7 @@ services:
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:${DB_PORT}/${DB_NAME}
       - REDIS_URL=redis://${REDIS_ADDR}
       - KAFKA_BROKERS=${KAFKA_BROKERS}
-      - QDRANT_URL=http://qdrant:6333
+      - QDRANT_URL=${QDRANT_URL:-http://qdrant:6333}
       - TEMPORAL_HOST=${TEMPORAL_HOST}
       - TEMPORAL_NAMESPACE=${TEMPORAL_NAMESPACE}
       - OTEL_EXPORTER_OTLP_ENDPOINT=jaeger:4317
@@ -128,9 +128,9 @@ services:
   jaeger:
     image: jaegertracing/all-in-one:1.57
     ports:
-      - "16686:16686"
-      - "4317:4317"
-      - "4318:4318"
+      - "${HOST_JAEGER_UI_PORT}:${JAEGER_UI_PORT}"
+      - "${HOST_JAEGER_OTLP_GRPC_PORT}:${JAEGER_OTLP_GRPC_PORT}"
+      - "${HOST_JAEGER_OTLP_HTTP_PORT}:${JAEGER_OTLP_HTTP_PORT}"
     environment:
       - COLLECTOR_OTLP_ENABLED=true
     restart: unless-stopped
@@ -138,7 +138,7 @@ services:
   temporal:
     image: temporalio/auto-setup:1.23.1
     ports:
-      - "7233:7233"
+      - "${HOST_TEMPORAL_PORT}:${TEMPORAL_PORT}"
     environment:
       - DB=postgresql
       - DB_PORT=${DB_PORT}
@@ -153,7 +153,7 @@ services:
   temporal-ui:
     image: temporalio/ui:2.26.0
     ports:
-      - "8763:8080"
+      - "${HOST_TEMPORAL_UI_PORT}:${TEMPORAL_UI_PORT}"
     environment:
       - TEMPORAL_ADDRESS=temporal:7233
       - TEMPORAL_CORS_ORIGINS=http://localhost:8763
@@ -164,8 +164,8 @@ services:
   qdrant:
     image: qdrant/qdrant:v1.9.0
     ports:
-      - "6333:6333"
-      - "6334:6334"
+      - "${HOST_QDRANT_PORT}:${QDRANT_PORT}"
+      - "${HOST_QDRANT_GRPC_PORT}:${QDRANT_GRPC_PORT}"
     volumes:
       - qdrant_data:/qdrant/storage
     restart: unless-stopped
@@ -173,8 +173,8 @@ services:
   kafka:
     image: apache/kafka:3.7.0
     ports:
-      - "9092:9092"
-      - "29092:29092"
+      - "${KAFKA_PORT}:${KAFKA_PORT}"
+      - "${HOST_KAFKA_PORT}:${HOST_KAFKA_PORT}"
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -195,7 +195,7 @@ services:
   kafka-ui:
     image: provectuslabs/kafka-ui:v0.7.2
     ports:
-      - "8085:8080"
+      - "${HOST_KAFKA_UI_PORT}:${KAFKA_UI_PORT}"
     environment:
       KAFKA_CLUSTERS_0_NAME: archon-cluster
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
@@ -207,7 +207,7 @@ services:
   loki:
     image: grafana/loki:3.0.0
     ports:
-      - "3100:3100"
+      - "${HOST_LOKI_PORT}:${LOKI_PORT}"
     command: -config.file=/etc/loki/local-config.yaml
     volumes:
       - ./loki/loki-config.yml:/etc/loki/local-config.yaml
@@ -228,7 +228,7 @@ services:
   debezium:
     image: debezium/connect:2.6.0.Final
     ports:
-      - "8083:8083"
+      - "${HOST_DEBEZIUM_PORT}:${DEBEZIUM_PORT}"
     environment:
       BOOTSTRAP_SERVERS: kafka:9092
       GROUP_ID: 1
@@ -260,7 +260,7 @@ services:
       - DB_PORT=${DB_PORT}
       - DB_HOST=db
       - DEBEZIUM_HOST=debezium
-      - DEBEZIUM_PORT=8083
+      - DEBEZIUM_PORT=${DEBEZIUM_PORT}
     depends_on:
       - debezium
     volumes:
@@ -275,5 +275,3 @@ volumes:
   qdrant_data:
   kafka_data:
   loki_data:
-
-
