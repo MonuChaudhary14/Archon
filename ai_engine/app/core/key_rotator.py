@@ -24,8 +24,9 @@ class GeminiClient:
         self.fallback_models = [
             preferred_model,
             "gemini-3.5-flash-lite",
-            "gemini-2.5-flash",
-            "gemini-1.5-flash",
+            "gemini-3-flash-preview",
+            "gemini-3.1-flash-lite",
+            "gemini-flash-lite-latest",
         ]
         seen = set()
         self.models = [m for m in self.fallback_models if not (m in seen or seen.add(m))]
