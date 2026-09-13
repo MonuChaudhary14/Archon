@@ -49,7 +49,7 @@ class GeminiClient:
             try:
                 res = await loop.run_in_executor(
                     None,
-                    lambda u=url: requests.post(u, json=payload, timeout=8)
+                    lambda u=url: requests.post(u, json=payload, timeout=20)
                 )
                 if res.status_code == 200:
                     data = res.json()
@@ -162,7 +162,7 @@ class NvidiaClient:
         loop = asyncio.get_running_loop()
         res = await loop.run_in_executor(
             None,
-            lambda: requests.post(self.url, headers=self.headers, json=payload, timeout=10)
+            lambda: requests.post(self.url, headers=self.headers, json=payload, timeout=45)
         )
         if res.status_code == 200:
             data = res.json()
@@ -186,7 +186,7 @@ class NvidiaClient:
         loop = asyncio.get_running_loop()
         def _stream_request():
             headers = {**self.headers, "Accept": "text/event-stream"}
-            return requests.post(self.url, headers=headers, json=payload, stream=True, timeout=10)
+            return requests.post(self.url, headers=headers, json=payload, stream=True, timeout=45)
 
         res = await loop.run_in_executor(None, _stream_request)
         if res.status_code != 200:
@@ -228,7 +228,7 @@ class NvidiaClient:
 
 class LLMKeyRotator:
     def __init__(self):
-        self.cooldown_duration = 60.0
+        self.cooldown_duration = 30.0
         self.cooldowns: Dict[str, float] = {}
 
         self.gemini_keys: List[str] = self._parse_keys(settings.GEMINI_API_KEYS, settings.GEMINI_API_KEY, provider="gemini")
@@ -304,7 +304,10 @@ class LLMKeyRotator:
                 else:
                     self.groq_index = (idx + 1) % n
                 return key
-        return None
+
+        # If all keys are in cooldown, pick the one with the lowest cooldown expiry
+        best_key = min(keys, key=lambda k: self.cooldowns.get(k, 0.0))
+        return best_key
 
     def _is_rate_limit_error(self, err: Exception) -> bool:
         err_str = str(err).lower()
@@ -332,8 +335,11 @@ class LLMKeyRotator:
             else:
                 keys = self.groq_keys
 
+            if not keys:
+                continue
+
             attempts = len(keys)
-            for _ in range(max(1, attempts)):
+            for _ in range(attempts):
                 key = self._get_active_key(provider)
                 if not key:
                     break
@@ -344,7 +350,8 @@ class LLMKeyRotator:
                     return response
                 except Exception as e:
                     last_exception = e
-                    self._mark_cooldown(key)
+                    if self._is_rate_limit_error(e):
+                        self._mark_cooldown(key)
                     logger.warning(f"Failed prompt with provider {provider} (key {key[:6]}...): {e}. Trying next.")
                     continue
 
@@ -364,8 +371,11 @@ class LLMKeyRotator:
             else:
                 keys = self.groq_keys
 
+            if not keys:
+                continue
+
             attempts = len(keys)
-            for _ in range(max(1, attempts)):
+            for _ in range(attempts):
                 key = self._get_active_key(provider)
                 if not key:
                     break
@@ -387,7 +397,8 @@ class LLMKeyRotator:
                         return
                 except Exception as e:
                     last_exception = e
-                    self._mark_cooldown(key)
+                    if self._is_rate_limit_error(e):
+                        self._mark_cooldown(key)
                     logger.warning(f"Failed streaming with provider {provider} (key {key[:6]}...): {e}. Trying next.")
                     continue
 
