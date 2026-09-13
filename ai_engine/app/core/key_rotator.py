@@ -315,8 +315,8 @@ class LLMKeyRotator:
         return any(k in err_str for k in keywords)
 
     def _get_providers_order(self) -> List[str]:
-        primary = settings.LLM_PROVIDER.lower() if settings.LLM_PROVIDER else "groq"
-        all_providers = ["groq", "gemini", "nvidia"]
+        primary = settings.LLM_PROVIDER.lower() if settings.LLM_PROVIDER else "gemini"
+        all_providers = ["gemini", "nvidia", "groq"]
         if primary in all_providers:
             ordered = [primary] + [p for p in all_providers if p != primary]
         else:
