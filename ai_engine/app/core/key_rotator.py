@@ -226,6 +226,124 @@ class NvidiaClient:
                 except Exception:
                     pass
 
+class GroqClient:
+    def __init__(self, api_key: str, model: Optional[str] = None):
+        self.api_key = api_key
+        preferred_model = model or settings.GROQ_MODEL or "openai/gpt-oss-120b"
+        self.fallback_models = [
+            preferred_model,
+            "openai/gpt-oss-120b",
+            "openai/gpt-oss-20b",
+        ]
+        seen = set()
+        self.models = [m for m in self.fallback_models if not (m in seen or seen.add(m))]
+        self.url = "https://api.groq.com/openai/v1/chat/completions"
+        self.headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            "User-Agent": "ArchonAI/1.0",
+        }
+
+    async def ainvoke(self, prompt: Any) -> Any:
+        prompt_text = prompt if isinstance(prompt, str) else str(prompt)
+        loop = asyncio.get_running_loop()
+        last_error = None
+        for m in self.models:
+            payload = {
+                "model": m,
+                "messages": [{"role": "user", "content": prompt_text}],
+                "temperature": 0.7,
+                "max_tokens": 2048,
+            }
+            try:
+                res = await loop.run_in_executor(
+                    None,
+                    lambda p=payload: requests.post(self.url, headers=self.headers, json=p, timeout=20)
+                )
+                if res.status_code == 200:
+                    data = res.json()
+                    text = data["choices"][0]["message"]["content"]
+                    return SimpleNamespace(content=text)
+                elif res.status_code in (400, 401, 403, 404, 429, 500, 503):
+                    last_error = RuntimeError(f"Groq model {m} returned {res.status_code}: {res.text}")
+                    continue
+                else:
+                    raise RuntimeError(f"Groq API HTTP {res.status_code}: {res.text}")
+            except Exception as e:
+                last_error = e
+                continue
+        if last_error:
+            raise last_error
+        raise RuntimeError("All Groq models exhausted for this key")
+
+    async def astream(self, prompt: Any):
+        prompt_text = prompt if isinstance(prompt, str) else str(prompt)
+        loop = asyncio.get_running_loop()
+        last_error = None
+        for m in self.models:
+            payload = {
+                "model": m,
+                "messages": [{"role": "user", "content": prompt_text}],
+                "temperature": 0.7,
+                "max_tokens": 2048,
+                "stream": True,
+            }
+            def _stream_request(p=payload):
+                headers = {**self.headers, "Accept": "text/event-stream"}
+                return requests.post(self.url, headers=headers, json=p, stream=True, timeout=20)
+
+            try:
+                res = await loop.run_in_executor(None, _stream_request)
+                if res.status_code == 200:
+                    q = asyncio.Queue()
+                    sentinel = object()
+
+                    def _reader():
+                        try:
+                            for line in res.iter_lines():
+                                if line:
+                                    loop.call_soon_threadsafe(q.put_nowait, line)
+                        except Exception as read_err:
+                            loop.call_soon_threadsafe(q.put_nowait, read_err)
+                        finally:
+                            loop.call_soon_threadsafe(q.put_nowait, sentinel)
+
+                    loop.run_in_executor(None, _reader)
+
+                    yielded_any = False
+                    while True:
+                        item = await q.get()
+                        if item is sentinel:
+                            break
+                        if isinstance(item, Exception):
+                            break
+                        decoded = item.decode("utf-8").strip()
+                        if decoded.startswith("data: "):
+                            data_str = decoded[6:].strip()
+                            if data_str == "[DONE]":
+                                break
+                            try:
+                                chunk_json = json.loads(data_str)
+                                delta = chunk_json["choices"][0]["delta"].get("content", "")
+                                if delta:
+                                    yielded_any = True
+                                    yield delta
+                            except Exception:
+                                pass
+                    if yielded_any:
+                        return
+                elif res.status_code in (400, 401, 403, 404, 429, 500, 503):
+                    last_error = RuntimeError(f"Groq model {m} stream returned {res.status_code}: {res.text}")
+                    continue
+                else:
+                    raise RuntimeError(f"Groq API HTTP {res.status_code}: {res.text}")
+            except Exception as e:
+                last_error = e
+                continue
+        if last_error:
+            raise last_error
+        raise RuntimeError("All Groq models exhausted for this key during stream")
+
 class LLMKeyRotator:
     def __init__(self):
         self.cooldown_duration = 30.0
@@ -265,12 +383,8 @@ class LLMKeyRotator:
             model_name = settings.GEMINI_MODEL or "gemini-3.5-flash-lite"
             return GeminiClient(api_key=api_key, model=model_name)
         elif provider == "groq":
-            model_name = settings.GROQ_MODEL or "llama-3.3-70b-versatile"
-            return ChatGroq(
-                model=model_name,
-                groq_api_key=api_key,
-                temperature=0.7
-            )
+            model_name = settings.GROQ_MODEL or "openai/gpt-oss-120b"
+            return GroqClient(api_key=api_key, model=model_name)
         elif provider == "nvidia":
             model_name = settings.NVIDIA_MODEL or "meta/llama-3.2-11b-vision-instruct"
             base_url = settings.NVIDIA_BASE_URL or "https://integrate.api.nvidia.com/v1"
