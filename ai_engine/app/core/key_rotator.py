@@ -20,12 +20,13 @@ logger = logging.getLogger(__name__)
 class GeminiClient:
     def __init__(self, api_key: str, model: Optional[str] = None):
         self.api_key = api_key
-        preferred_model = model or settings.GEMINI_MODEL or "gemini-3.5-flash-lite"
+        preferred_model = model or settings.GEMINI_MODEL or "gemini-2.5-flash"
         self.fallback_models = [
             preferred_model,
-            "gemini-3.5-flash-lite",
-            "gemini-flash-lite-latest",
-            "gemini-3-flash-preview",
+            "gemini-2.5-flash",
+            "gemini-2.0-flash",
+            "gemini-1.5-flash",
+            "gemini-2.0-flash-lite",
         ]
         seen = set()
         self.models = [m for m in self.fallback_models if not (m in seen or seen.add(m))]
@@ -54,7 +55,7 @@ class GeminiClient:
                     data = res.json()
                     text = data["candidates"][0]["content"]["parts"][0]["text"]
                     return SimpleNamespace(content=text)
-                elif res.status_code in (429, 404, 500, 503):
+                elif res.status_code in (400, 401, 403, 404, 429, 500, 503):
                     last_error = RuntimeError(f"Gemini model {m} returned {res.status_code}: {res.text}")
                     continue
                 else:
@@ -127,7 +128,7 @@ class GeminiClient:
 
                     if yielded_any:
                         return
-                elif res.status_code in (429, 404, 500, 503):
+                elif res.status_code in (400, 401, 403, 404, 429, 500, 503):
                     last_error = RuntimeError(f"Gemini model {m} stream returned {res.status_code}: {res.text}")
                     continue
                 else:
@@ -191,20 +192,39 @@ class NvidiaClient:
         if res.status_code != 200:
             raise RuntimeError(f"NVIDIA API HTTP {res.status_code}: {res.text}")
 
-        for line in res.iter_lines():
-            if line:
-                decoded = line.decode("utf-8").strip()
-                if decoded.startswith("data: "):
-                    data_str = decoded[6:].strip()
-                    if data_str == "[DONE]":
-                        break
-                    try:
-                        chunk_json = json.loads(data_str)
-                        delta = chunk_json["choices"][0]["delta"].get("content", "")
-                        if delta:
-                            yield delta
-                    except Exception:
-                        pass
+        q = asyncio.Queue()
+        sentinel = object()
+
+        def _reader():
+            try:
+                for line in res.iter_lines():
+                    if line:
+                        loop.call_soon_threadsafe(q.put_nowait, line)
+            except Exception as read_err:
+                loop.call_soon_threadsafe(q.put_nowait, read_err)
+            finally:
+                loop.call_soon_threadsafe(q.put_nowait, sentinel)
+
+        loop.run_in_executor(None, _reader)
+
+        while True:
+            item = await q.get()
+            if item is sentinel:
+                break
+            if isinstance(item, Exception):
+                break
+            decoded = item.decode("utf-8").strip()
+            if decoded.startswith("data: "):
+                data_str = decoded[6:].strip()
+                if data_str == "[DONE]":
+                    break
+                try:
+                    chunk_json = json.loads(data_str)
+                    delta = chunk_json["choices"][0]["delta"].get("content", "")
+                    if delta:
+                        yield delta
+                except Exception:
+                    pass
 
 class LLMKeyRotator:
     def __init__(self):
@@ -242,7 +262,7 @@ class LLMKeyRotator:
 
     def _create_client(self, provider: str, api_key: str):
         if provider == "gemini":
-            model_name = settings.GEMINI_MODEL or "gemini-3.5-flash-lite"
+            model_name = settings.GEMINI_MODEL or "gemini-2.5-flash"
             return GeminiClient(api_key=api_key, model=model_name)
         elif provider == "groq":
             model_name = settings.GROQ_MODEL or "llama-3.3-70b-versatile"
@@ -292,8 +312,8 @@ class LLMKeyRotator:
         return any(k in err_str for k in keywords)
 
     def _get_providers_order(self) -> List[str]:
-        primary = settings.LLM_PROVIDER.lower() if settings.LLM_PROVIDER else "gemini"
-        all_providers = ["gemini", "nvidia", "groq"]
+        primary = settings.LLM_PROVIDER.lower() if settings.LLM_PROVIDER else "groq"
+        all_providers = ["groq", "gemini", "nvidia"]
         if primary in all_providers:
             ordered = [primary] + [p for p in all_providers if p != primary]
         else:
@@ -324,11 +344,9 @@ class LLMKeyRotator:
                     return response
                 except Exception as e:
                     last_exception = e
-                    if self._is_rate_limit_error(e):
-                        self._mark_cooldown(key)
-                    else:
-                        logger.error(f"Error executing prompt with provider {provider}: {e}")
-                        break
+                    self._mark_cooldown(key)
+                    logger.warning(f"Failed prompt with provider {provider} (key {key[:6]}...): {e}. Trying next.")
+                    continue
 
         if last_exception:
             raise last_exception
@@ -355,22 +373,23 @@ class LLMKeyRotator:
                 try:
                     client = self._create_client(provider, key)
                     if hasattr(client, "astream"):
+                        yielded_any = False
                         async for chunk in client.astream(prompt):
                             content = chunk.content if hasattr(chunk, "content") else str(chunk)
                             if content:
+                                yielded_any = True
                                 yield content
-                        return
+                        if yielded_any:
+                            return
                     else:
                         response = await client.ainvoke(prompt)
                         yield response.content
                         return
                 except Exception as e:
                     last_exception = e
-                    if self._is_rate_limit_error(e):
-                        self._mark_cooldown(key)
-                    else:
-                        logger.error(f"Error streaming prompt with provider {provider}: {e}")
-                        break
+                    self._mark_cooldown(key)
+                    logger.warning(f"Failed streaming with provider {provider} (key {key[:6]}...): {e}. Trying next.")
+                    continue
 
         if last_exception:
             raise last_exception
