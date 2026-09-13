@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/MonuChaudhary14/Archon/pkg/telemetry"
 	"github.com/segmentio/kafka-go"
@@ -71,6 +72,8 @@ func NewKafkaService(hub ConnectionHub) *KafkaService {
 		Addr:                   kafka.TCP(brokers...),
 		Balancer:               &kafka.Murmur2Balancer{},
 		AllowAutoTopicCreation: true,
+		BatchTimeout:           10 * time.Millisecond,
+		RequiredAcks:           kafka.RequireOne,
 	}
 
 	groupID := os.Getenv("KAFKA_GROUP_ID")
