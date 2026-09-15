@@ -13,7 +13,7 @@ type WebSocketConnection interface {
 
 type ConnectionHub interface {
 	Register(sessionID string, conn WebSocketConnection)
-	Unregister(sessionID string)
+	Unregister(sessionID string, conn WebSocketConnection)
 	SendMessage(sessionID string, message []byte) bool
 }
 

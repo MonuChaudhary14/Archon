@@ -41,7 +41,7 @@ func (m *MockConnectionHub) Register(sessionID string, conn WebSocketConnection)
 	m.RegisterCalled = true
 }
 
-func (m *MockConnectionHub) Unregister(sessionID string) {
+func (m *MockConnectionHub) Unregister(sessionID string, conn WebSocketConnection) {
 	m.UnregisterCalled = true
 }
 

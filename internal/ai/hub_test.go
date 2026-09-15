@@ -63,19 +63,15 @@ func TestHubRedisPubSub(t *testing.T) {
 		t.Error("timeout waiting for Redis Pub/Sub message to reach WebSocket")
 	}
 
-	hub.Unregister(sessionID)
+	hub.Unregister(sessionID, conn)
 
 	time.Sleep(100 * time.Millisecond)
 
 	hub.mu.Lock()
 	_, exists := hub.connections[sessionID]
-	_, cancelExists := hub.cancels[sessionID]
 	hub.mu.Unlock()
 
 	if exists {
 		t.Error("expected connection to be deleted from hub")
-	}
-	if cancelExists {
-		t.Error("expected cancel func to be deleted from hub")
 	}
 }

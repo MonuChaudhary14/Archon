@@ -11,16 +11,14 @@ import (
 
 type Hub struct {
 	mu          sync.RWMutex
-	connections map[string]WebSocketConnection
+	connections map[string]map[WebSocketConnection]context.CancelFunc
 	redisClient *redis.Client
-	cancels     map[string]context.CancelFunc
 }
 
 func NewHub(redisClient *redis.Client) *Hub {
 	return &Hub{
-		connections: make(map[string]WebSocketConnection),
+		connections: make(map[string]map[WebSocketConnection]context.CancelFunc),
 		redisClient: redisClient,
-		cancels:     make(map[string]context.CancelFunc),
 	}
 }
 
@@ -28,15 +26,16 @@ func (h *Hub) Register(sessionID string, conn WebSocketConnection) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	cancel, exists := h.cancels[sessionID]
-	if exists {
+	if _, exists := h.connections[sessionID]; !exists {
+		h.connections[sessionID] = make(map[WebSocketConnection]context.CancelFunc)
+	}
+
+	if cancel, exists := h.connections[sessionID][conn]; exists {
 		cancel()
 	}
 
-	h.connections[sessionID] = conn
-
 	ctx, cancelFunc := context.WithCancel(context.Background())
-	h.cancels[sessionID] = cancelFunc
+	h.connections[sessionID][conn] = cancelFunc
 
 	go h.subscribeToRedis(ctx, sessionID, conn)
 }
@@ -63,16 +62,23 @@ func (h *Hub) subscribeToRedis(ctx context.Context, sessionID string, conn WebSo
 	}
 }
 
-func (h *Hub) Unregister(sessionID string) {
+func (h *Hub) Unregister(sessionID string, conn WebSocketConnection) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	cancel, exists := h.cancels[sessionID]
-	if exists {
-		cancel()
-		delete(h.cancels, sessionID)
+	conns, exists := h.connections[sessionID]
+	if !exists {
+		return
 	}
-	delete(h.connections, sessionID)
+
+	if cancel, ok := conns[conn]; ok {
+		cancel()
+		delete(conns, conn)
+	}
+
+	if len(conns) == 0 {
+		delete(h.connections, sessionID)
+	}
 }
 
 func (h *Hub) SendMessage(sessionID string, message []byte) bool {

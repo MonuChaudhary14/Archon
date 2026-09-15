@@ -38,7 +38,7 @@ func NewSessionProcessor(promptPub PromptPublisher, diagramPub DiagramEventPubli
 
 func (p *sessionProcessor) ProcessSession(ctx context.Context, sessionID string, conn WebSocketConnection) error {
 	p.hub.Register(sessionID, conn)
-	defer p.hub.Unregister(sessionID)
+	defer p.hub.Unregister(sessionID, conn)
 
 	history, err := p.historyStore.GetChatHistory(ctx, sessionID)
 	if err == nil {
