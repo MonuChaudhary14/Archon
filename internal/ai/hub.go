@@ -37,6 +37,7 @@ func (h *Hub) Register(sessionID string, conn WebSocketConnection) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	h.connections[sessionID][conn] = cancelFunc
 
+	log.Printf("[Hub.Register] Session %s registered (active conns for session: %d)", sessionID, len(h.connections[sessionID]))
 	go h.subscribeToRedis(ctx, sessionID, conn)
 }
 

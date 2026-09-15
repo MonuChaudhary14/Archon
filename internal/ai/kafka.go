@@ -198,6 +198,7 @@ func (k *KafkaService) StartConsuming() {
 					},
 				}
 				if payloadBytes, marshalErr := json.Marshal(chatPayload); marshalErr == nil {
+					log.Printf("[Kafka -> Hub] Final response forwarded for session: %s", resp.SessionID)
 					k.hub.SendMessage(resp.SessionID, payloadBytes)
 				}
 			}

@@ -222,6 +222,7 @@ class KafkaConsumerService:
                                 json.dumps(final_event).encode('utf-8'),
                                 headers=out_headers
                             )
+                            print(f"Finished streaming response for session: {session_id}")
 
             except Exception as e:
                 span.record_exception(e)
