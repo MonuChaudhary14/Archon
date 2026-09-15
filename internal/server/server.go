@@ -112,7 +112,8 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	analyticsHandler := analytics.NewHandler(analyticsService)
 
 	quizRepo := quiz.NewRepository(db)
-	quizService := quiz.NewService(quizRepo)
+	cachedQuizRepo := quiz.NewCachedRepository(quizRepo, redisClient)
+	quizService := quiz.NewService(cachedQuizRepo)
 	quizHandler := quiz.NewHandler(quizService)
 
 	settingsRepo := settings.NewRepository(db)
