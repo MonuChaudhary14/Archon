@@ -117,12 +117,17 @@ class GeminiClient:
                                 chunk_json = json.loads(data_str)
                                 candidates = chunk_json.get("candidates", [])
                                 if candidates:
-                                    parts = candidates[0].get("content", {}).get("parts", [])
+                                    candidate = candidates[0]
+                                    parts = candidate.get("content", {}).get("parts", [])
                                     for part in parts:
                                         delta_text = part.get("text", "")
                                         if delta_text:
                                             yielded_any = True
                                             yield delta_text
+                                    finish_reason = candidate.get("finishReason")
+                                    if finish_reason:
+                                        res.close()
+                                        break
                             except Exception:
                                 pass
 
@@ -217,12 +222,19 @@ class NvidiaClient:
             if decoded.startswith("data: "):
                 data_str = decoded[6:].strip()
                 if data_str == "[DONE]":
+                    res.close()
                     break
                 try:
                     chunk_json = json.loads(data_str)
-                    delta = chunk_json["choices"][0]["delta"].get("content", "")
-                    if delta:
-                        yield delta
+                    choices = chunk_json.get("choices", [])
+                    if choices:
+                        delta = choices[0].get("delta", {}).get("content", "")
+                        if delta:
+                            yield delta
+                        finish_reason = choices[0].get("finish_reason")
+                        if finish_reason:
+                            res.close()
+                            break
                 except Exception:
                     pass
 
@@ -321,13 +333,20 @@ class GroqClient:
                         if decoded.startswith("data: "):
                             data_str = decoded[6:].strip()
                             if data_str == "[DONE]":
+                                res.close()
                                 break
                             try:
                                 chunk_json = json.loads(data_str)
-                                delta = chunk_json["choices"][0]["delta"].get("content", "")
-                                if delta:
-                                    yielded_any = True
-                                    yield delta
+                                choices = chunk_json.get("choices", [])
+                                if choices:
+                                    delta = choices[0].get("delta", {}).get("content", "")
+                                    if delta:
+                                        yielded_any = True
+                                        yield delta
+                                    finish_reason = choices[0].get("finish_reason")
+                                    if finish_reason:
+                                        res.close()
+                                        break
                             except Exception:
                                 pass
                     if yielded_any:
