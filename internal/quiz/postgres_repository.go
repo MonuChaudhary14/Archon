@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/MonuChaudhary14/Archon/internal/models"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -25,27 +26,7 @@ type dbOption struct {
 	Explanation string `json:"explanation"`
 }
 
-func (r *postgresRepository) GetDailyChallenge(ctx context.Context) (*models.QuizQuestion, error) {
-	query := `
-		SELECT id, question, scenario, topic_tag, options
-		FROM quiz_questions
-		WHERE is_daily = TRUE
-		ORDER BY created_at DESC
-		LIMIT 1
-	`
-	var id, qText, topicTag string
-	var scenario sql.NullString
-	var optionsBytes []byte
-
-	err := r.db.QueryRow(ctx, query).Scan(&id, &qText, &scenario, &topicTag, &optionsBytes)
-	if err == sql.ErrNoRows {
-		queryFallback := `SELECT id, question, scenario, topic_tag, options FROM quiz_questions LIMIT 1`
-		err = r.db.QueryRow(ctx, queryFallback).Scan(&id, &qText, &scenario, &topicTag, &optionsBytes)
-	}
-	if err != nil {
-		return nil, err
-	}
-
+func parseQuestion(id, qText string, scenario sql.NullString, topicTag string, optionsBytes []byte) *models.QuizQuestion {
 	var dbOpts []dbOption
 	_ = json.Unmarshal(optionsBytes, &dbOpts)
 
@@ -68,13 +49,51 @@ func (r *postgresRepository) GetDailyChallenge(ctx context.Context) (*models.Qui
 		Scenario: scenarioStr,
 		TopicTag: topicTag,
 		Options:  pubOpts,
-	}, nil
+	}
 }
 
-func (r *postgresRepository) VerifyDailyChallenge(ctx context.Context, questionID string, selectedOptionID string) (*models.VerifyDailyChallengeResponse, error) {
-	query := `SELECT options FROM quiz_questions WHERE id::text = $1`
+func (r *postgresRepository) GetDailyChallenge(ctx context.Context) (*models.QuizQuestion, error) {
+	var count int
+	err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM quiz_questions WHERE is_daily = TRUE`).Scan(&count)
+	if err != nil || count == 0 {
+		queryFallback := `SELECT id, question, scenario, topic_tag, options FROM quiz_questions ORDER BY id ASC LIMIT 1`
+		var id, qText, topicTag string
+		var scenario sql.NullString
+		var optionsBytes []byte
+		err = r.db.QueryRow(ctx, queryFallback).Scan(&id, &qText, &scenario, &topicTag, &optionsBytes)
+		if err != nil {
+			return nil, err
+		}
+		return parseQuestion(id, qText, scenario, topicTag, optionsBytes), nil
+	}
+
+	dayEpoch := int(time.Now().UTC().Unix() / 86400)
+	offset := dayEpoch % count
+
+	query := `
+		SELECT id, question, scenario, topic_tag, options
+		FROM quiz_questions
+		WHERE is_daily = TRUE
+		ORDER BY id ASC
+		LIMIT 1 OFFSET $1
+	`
+	var id, qText, topicTag string
+	var scenario sql.NullString
 	var optionsBytes []byte
-	err := r.db.QueryRow(ctx, query, questionID).Scan(&optionsBytes)
+
+	err = r.db.QueryRow(ctx, query, offset).Scan(&id, &qText, &scenario, &topicTag, &optionsBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseQuestion(id, qText, scenario, topicTag, optionsBytes), nil
+}
+
+func (r *postgresRepository) VerifyDailyChallenge(ctx context.Context, userID int, questionID string, selectedOptionID string) (*models.VerifyDailyChallengeResponse, error) {
+	query := `SELECT deck_id, options FROM quiz_questions WHERE id::text = $1`
+	var deckID sql.NullString
+	var optionsBytes []byte
+	err := r.db.QueryRow(ctx, query, questionID).Scan(&deckID, &optionsBytes)
 	if err != nil {
 		return nil, errors.New("question not found")
 	}
@@ -94,6 +113,29 @@ func (r *postgresRepository) VerifyDailyChallenge(ctx context.Context, questionI
 		if o.ID == selectedOptionID && o.IsCorrect {
 			isCorrect = true
 		}
+	}
+
+	if userID > 0 {
+		scorePercent := 0
+		correctCount := 0
+		if isCorrect {
+			scorePercent = 100
+			correctCount = 1
+		}
+		ansMap := map[string]string{questionID: selectedOptionID}
+		answersJSON, _ := json.Marshal(ansMap)
+
+		var targetDeckID *string
+		if deckID.Valid && deckID.String != "" {
+			d := deckID.String
+			targetDeckID = &d
+		}
+
+		insertAttempt := `
+			INSERT INTO quiz_attempts (user_id, deck_id, score_percent, correct_count, total_questions, time_spent_seconds, answers)
+			VALUES ($1, $2, $3, $4, 1, 0, $5)
+		`
+		_, _ = r.db.Exec(ctx, insertAttempt, userID, targetDeckID, scorePercent, correctCount, answersJSON)
 	}
 
 	return &models.VerifyDailyChallengeResponse{
@@ -163,29 +205,8 @@ func (r *postgresRepository) GetDeckQuestions(ctx context.Context, deckID string
 			continue
 		}
 
-		var dbOpts []dbOption
-		_ = json.Unmarshal(optionsBytes, &dbOpts)
-
-		var pubOpts []models.QuizOption
-		for _, o := range dbOpts {
-			pubOpts = append(pubOpts, models.QuizOption{
-				ID:   o.ID,
-				Text: o.Text,
-			})
-		}
-
-		scenarioStr := ""
-		if scenario.Valid {
-			scenarioStr = scenario.String
-		}
-
-		questions = append(questions, models.QuizQuestion{
-			ID:       id,
-			Question: qText,
-			Scenario: scenarioStr,
-			TopicTag: topicTag,
-			Options:  pubOpts,
-		})
+		q := parseQuestion(id, qText, scenario, topicTag, optionsBytes)
+		questions = append(questions, *q)
 	}
 	if questions == nil {
 		questions = []models.QuizQuestion{}

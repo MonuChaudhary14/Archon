@@ -51,6 +51,8 @@ func (h *Handler) GetDailyChallenge(c *gin.Context) {
 // @Failure      500 {object} map[string]interface{} "{"success": false, "error": "..."}"
 // @Router       /api/v1/quizzes/daily-challenge/verify [post]
 func (h *Handler) VerifyDailyChallenge(c *gin.Context) {
+	userID, _ := auth.GetUserID(c)
+
 	var req models.VerifyDailyChallengeRequest
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
@@ -58,7 +60,7 @@ func (h *Handler) VerifyDailyChallenge(c *gin.Context) {
 		return
 	}
 
-	res, err := h.service.VerifyDailyChallenge(c.Request.Context(), req)
+	res, err := h.service.VerifyDailyChallenge(c.Request.Context(), userID, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
 		return

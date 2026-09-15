@@ -8,7 +8,7 @@ import (
 
 type Service interface {
 	GetDailyChallenge(ctx context.Context) (*models.QuizQuestion, error)
-	VerifyDailyChallenge(ctx context.Context, req models.VerifyDailyChallengeRequest) (*models.VerifyDailyChallengeResponse, error)
+	VerifyDailyChallenge(ctx context.Context, userID int, req models.VerifyDailyChallengeRequest) (*models.VerifyDailyChallengeResponse, error)
 	ListDecks(ctx context.Context, userID int) ([]models.QuizDeckItem, error)
 	GetDeckQuestions(ctx context.Context, deckID string) ([]models.QuizQuestion, error)
 	SubmitDeckQuiz(ctx context.Context, userID int, deckID string, req models.SubmitDeckQuizRequest) (*models.SubmitDeckQuizResponse, error)
@@ -26,8 +26,8 @@ func (s *service) GetDailyChallenge(ctx context.Context) (*models.QuizQuestion, 
 	return s.repo.GetDailyChallenge(ctx)
 }
 
-func (s *service) VerifyDailyChallenge(ctx context.Context, req models.VerifyDailyChallengeRequest) (*models.VerifyDailyChallengeResponse, error) {
-	return s.repo.VerifyDailyChallenge(ctx, req.QuestionID, req.SelectedOptionID)
+func (s *service) VerifyDailyChallenge(ctx context.Context, userID int, req models.VerifyDailyChallengeRequest) (*models.VerifyDailyChallengeResponse, error) {
+	return s.repo.VerifyDailyChallenge(ctx, userID, req.QuestionID, req.SelectedOptionID)
 }
 
 func (s *service) ListDecks(ctx context.Context, userID int) ([]models.QuizDeckItem, error) {
