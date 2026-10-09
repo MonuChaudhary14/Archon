@@ -43,12 +43,27 @@ class KafkaConsumerService:
         )
 
     async def start(self):
-        await self.consumer.start()
-        await self.retry_10s_consumer.start()
-        await self.retry_60s_consumer.start()
-        await self.eval_consumer.start()
-        await self.diagram_consumer.start()
-        await self.producer.start()
+        while True:
+            try:
+                await self.consumer.start()
+                await self.retry_10s_consumer.start()
+                await self.retry_60s_consumer.start()
+                await self.eval_consumer.start()
+                await self.diagram_consumer.start()
+                await self.producer.start()
+                break
+            except Exception as e:
+                print(f"Failed to start Kafka services: {e}. Retrying in 5 seconds...")
+                try:
+                    await self.consumer.stop()
+                    await self.retry_10s_consumer.stop()
+                    await self.retry_60s_consumer.stop()
+                    await self.eval_consumer.stop()
+                    await self.diagram_consumer.stop()
+                    await self.producer.stop()
+                except Exception:
+                    pass
+                await asyncio.sleep(5)
         
         try:
             await asyncio.gather(

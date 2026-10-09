@@ -22,14 +22,7 @@ def _parse_json(content: str) -> Dict[str, Any] | None:
 
 class EvaluationActivities:
     def __init__(self, repo: SQLInterviewRepository | None = None, llm: LLMKeyRotator | None = None, knowledge: KnowledgeService | None = None):
-        self.db = None
-        db_url = settings.get_database_url()
-        if db_url:
-            try:
-                self.db = SQLDatabase.from_uri(db_url)
-            except Exception:
-                pass
-        self.repo = repo or SQLInterviewRepository(self.db)
+        self.repo = repo or SQLInterviewRepository()
         self.llm = llm or LLMKeyRotator()
         self.knowledge = knowledge or KnowledgeService()
 

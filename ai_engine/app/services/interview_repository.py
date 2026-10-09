@@ -36,14 +36,29 @@ def is_valid_uuid(val: str) -> bool:
         return False
 
 class SQLInterviewRepository(InterviewRepository):
-    def __init__(self, db: SQLDatabase):
+    def __init__(self, db: SQLDatabase | None = None):
         self.db = db
 
+    def _get_db(self) -> SQLDatabase | None:
+        if self.db is not None:
+            return self.db
+        from app.core.config import settings
+        db_url = settings.get_database_url()
+        if db_url:
+            try:
+                self.db = SQLDatabase.from_uri(db_url)
+                return self.db
+            except Exception as e:
+                print(f"Failed to connect to database: {e}")
+                return None
+        return None
+
     def get_interview_context(self, session_id: str) -> Dict[str, Any] | None:
-        if not self.db or not is_valid_uuid(session_id):
+        db = self._get_db()
+        if not db or not is_valid_uuid(session_id):
             return None
         try:
-            with self.db._engine.connect() as conn:
+            with db._engine.connect() as conn:
                 result = conn.execute(text(GET_INTERVIEW_CONTEXT_QUERY), {"session_id": session_id})
                 row = result.fetchone()
                 if row:
@@ -57,10 +72,11 @@ class SQLInterviewRepository(InterviewRepository):
         return None
 
     def get_diagram_context(self, session_id: str) -> Dict[str, Any] | None:
-        if not self.db or not is_valid_uuid(session_id):
+        db = self._get_db()
+        if not db or not is_valid_uuid(session_id):
             return None
         try:
-            with self.db._engine.connect() as conn:
+            with db._engine.connect() as conn:
                 nodes_res = conn.execute(text(GET_DIAGRAM_NODES_QUERY), {"session_id": session_id})
                 edges_res = conn.execute(text(GET_DIAGRAM_EDGES_QUERY), {"session_id": session_id})
                 nodes = [{"id": r[0], "type": r[1], "label": r[2]} for r in nodes_res.fetchall()]
@@ -71,9 +87,10 @@ class SQLInterviewRepository(InterviewRepository):
         return None
 
     def save_evaluation_report(self, session_id: str, score: int, feedback: Dict[str, Any]) -> None:
-        if not self.db:
+        db = self._get_db()
+        if not db:
             return
-        with self.db._engine.begin() as conn:
+        with db._engine.begin() as conn:
             conn.execute(
                 text(SAVE_EVALUATION_REPORT_QUERY),
                 {
@@ -84,10 +101,11 @@ class SQLInterviewRepository(InterviewRepository):
             )
 
     def save_evaluation_error(self, session_id: str, error_message: str) -> None:
-        if not self.db:
+        db = self._get_db()
+        if not db:
             return
         error_payload = {"error": f"Evaluation failed: {error_message}"}
-        with self.db._engine.begin() as conn:
+        with db._engine.begin() as conn:
             conn.execute(
                 text(SAVE_EVALUATION_ERROR_QUERY),
                 {

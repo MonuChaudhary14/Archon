@@ -16,25 +16,29 @@ from app.core.interfaces import InterviewRepository
 class LLMService:
     def __init__(self, repo: InterviewRepository | None = None, rotator: LLMKeyRotator | None = None):
         self.llm = rotator or LLMKeyRotator()
-
         self.db = None
-
-        db_url = settings.get_database_url()
-        if db_url:
-            try:
-                self.db = SQLDatabase.from_uri(db_url)
-            except Exception as e:
-                print(f"Warning: Failed to connect SQLDatabase from URI: {e}")
-
         self.redis_client = None
         if settings.REDIS_URL:
             self.redis_client = redis.from_url(settings.REDIS_URL)
 
-        self.repo = repo or SQLInterviewRepository(self.db)
+        self.repo = repo or SQLInterviewRepository()
         self.eval_service = EvaluationService(self.llm, self.repo)
         self.knowledge_service = KnowledgeService()
         self.diagram_service = DiagramService(self.llm)
         self.producer = None
+
+    def _get_db(self):
+        if self.db is not None:
+            return self.db
+        db_url = settings.get_database_url()
+        if db_url:
+            try:
+                self.db = SQLDatabase.from_uri(db_url)
+                return self.db
+            except Exception as e:
+                print(f"Warning: Failed to connect SQLDatabase from URI: {e}")
+                return None
+        return None
 
     def set_kafka_producer(self, producer):
         self.producer = producer
@@ -73,13 +77,14 @@ class LLMService:
             return None
 
     def get_interview_context(self, session_id: str):
-        return get_interview_context(self.db, session_id)
+        return get_interview_context(self._get_db(), session_id)
 
     def get_question_details(self, question_id: str):
-        if not self.db:
+        db = self._get_db()
+        if not db:
             return None
         try:
-            with self.db._engine.connect() as conn:
+            with db._engine.connect() as conn:
                 result = conn.execute(
                     text("SELECT title, difficulty FROM questions WHERE id = :id"),
                     {"id": question_id}
