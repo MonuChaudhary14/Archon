@@ -187,6 +187,7 @@ class KafkaConsumerService:
                     await self.producer.send_and_wait(
                         'ai.responses',
                         json.dumps(result_event).encode('utf-8'),
+                        key=session_id.encode('utf-8'),
                         headers=out_headers
                     )
                 elif "status" in data and data["status"] == "SUBMITTED":
@@ -204,6 +205,7 @@ class KafkaConsumerService:
                     await self.producer.send_and_wait(
                         'ai.responses',
                         json.dumps(result_event).encode('utf-8'),
+                        key=session_id.encode('utf-8'),
                         headers=out_headers
                     )
                 else:
@@ -223,6 +225,7 @@ class KafkaConsumerService:
                             await self.producer.send(
                                 'ai.responses',
                                 json.dumps(chunk_event).encode('utf-8'),
+                                key=session_id.encode('utf-8'),
                                 headers=out_headers
                             )
                         else:
@@ -235,6 +238,7 @@ class KafkaConsumerService:
                             await self.producer.send_and_wait(
                                 'ai.responses',
                                 json.dumps(final_event).encode('utf-8'),
+                                key=session_id.encode('utf-8'),
                                 headers=out_headers
                             )
                             print(f"Finished streaming response for session: {session_id}")
@@ -356,6 +360,7 @@ class KafkaConsumerService:
                     await self.producer.send_and_wait(
                         'ai.responses',
                         json.dumps(result_event).encode('utf-8'),
+                        key=session_id.encode('utf-8'),
                         headers=out_headers
                     )
             except asyncio.CancelledError:
